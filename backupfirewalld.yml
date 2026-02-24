@@ -1,1 +1,16 @@
+---
+- name: Backup Huawei Firewall
+  hosts: all
+  gather_facts: no
+  tasks:
 
+    - name: Run display current-configuration
+      ansible.netcommon.cli_command:
+        command: display current-configuration
+      register: output
+
+    - name: Save config to file
+      copy:
+        content: "{{ output.stdout }}"
+        dest: "/tmp/{{ inventory_hostname }}.cfg"
+      delegate_to: localhost
