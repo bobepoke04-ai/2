@@ -1,7 +1,4 @@
 ---
-- name: Debug whoami and perms
-  command: bash -lc "id; umask; ls -ld /var/lib/awx /var/lib/awx/projects; touch /var/lib/awx/projects/.t && rm -f /var/lib/awx/projects/.t"
-  changed_when: false
 - name: Backup Huawei Firewall to AWX Projects PV
   hosts: bj
   gather_facts: false
@@ -13,6 +10,9 @@
     keep_days: 30
 
   tasks:
+    - name: Debug whoami and perms
+      command: bash -lc "id; umask; ls -ld /var/lib/awx /var/lib/awx/projects; touch /var/lib/awx/projects/.t && rm -f /var/lib/awx/projects/.t"
+      changed_when: false
     - name: Create base backups dir with mkdir (avoid file module parent-dir checks)
       command: mkdir -p "{{ backup_root }}"
       changed_when: false
