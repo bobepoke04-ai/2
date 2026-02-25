@@ -17,6 +17,9 @@
     dest_file: "{{ dest_dir }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
 
   tasks:
+    - name: Check in-cluster auth files
+      command: bash -lc 'env | egrep "KUBERNETES_SERVICE" || true; ls -l /var/run/secrets/kubernetes.io/serviceaccount || true'
+      changed_when: false
     - name: Get firewall configuration
       community.network.ce_command:
         commands:
