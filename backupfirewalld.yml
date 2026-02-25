@@ -1,47 +1,44 @@
 ---
-- name: Backup Huawei Firewall to Projects PVC via task container
+- name: Backup Huawei Firewall (Project backups folder)
   hosts: bj
   gather_facts: false
 
   vars:
-    backup_root: "/runner/project/backups"
+    backup_root: "{{ playbook_dir }}/backups"
     today: "{{ lookup('pipe', 'date +%F') }}"
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
     keep_days: 30
 
   tasks:
-    - name: Where is /runner/project really?
-      command: bash -lc "id; pwd; ls -ld /runner/project; df -h /runner/project; mount | egrep 'runner/project|projects' || true; ls -la /runner/project | head -n 30"
+    - name: Show backup root
+      command: bash -lc "pwd; echo playbook_dir={{ playbook_dir }}; ls -la {{ playbook_dir }} | head -n 50"
       changed_when: false
+
+    - name: Create backup directory
+      command: mkdir -p "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
+      changed_when: false
+
     - name: Disable terminal paging (best effort)
       ansible.netcommon.cli_command:
         command: screen-length 0 temporary
       ignore_errors: true
 
-    - name: Get firewall configuration (run on network device)
+    - name: Get firewall configuration
       community.network.ce_command:
         commands:
           - display current-configuration
       register: cfg
 
-    # ===== 写入 PVC：委派给 localhost（task 容器）=====
-    - name: Create backup directory on projects PVC (task container)
-      command: mkdir -p "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
-      delegate_to: localhost
-      changed_when: false
-
-    - name: Save configuration to file on projects PVC (task container)
+    - name: Save configuration to file
       copy:
         content: "{{ cfg.stdout[0] | string }}"
         dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
         mode: "0644"
-      delegate_to: localhost
 
-    - name: Cleanup old backups on projects PVC (task container)
+    - name: Cleanup old backups (best effort)
       shell: |
         find "{{ backup_root }}/{{ inventory_hostname }}" -type f -name "*.cfg" -mtime +{{ keep_days }} -delete
       args:
         executable: /bin/bash
-      delegate_to: localhost
       changed_when: false
       failed_when: false
