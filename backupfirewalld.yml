@@ -1,13 +1,5 @@
-- name: Backup Huawei Firewall
-  hosts: bj
+- hosts: bj
   gather_facts: false
   tasks:
-    - name: Run display current-configuration
-      ansible.netcommon.cli_command:
-        command: display current-configuration
-      register: cfg
-
-    - name: Save config to file on AWX
-      copy:
-        content: "{{ cfg.stdout }}"
-        dest: "/var/lib/awx/projects/firewall-backup/bj_{{ inventory_hostname }}_{{ lookup('pipe','date +%F_%H%M%S') }}.cfg"
+    - ansible.netcommon.cli_command:
+        command: display version
