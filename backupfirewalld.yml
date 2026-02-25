@@ -1,5 +1,5 @@
 ---
-- name: Backup Huawei Firewall (AWX pv)
+- name: Backup Huawei Firewall (Projects PVC)
   hosts: bj
   gather_facts: false
 
@@ -10,14 +10,11 @@
     keep_days: 30
 
   tasks:
-    - name: Verify /runner/project is mounted
-      command: bash -lc "ls -ld "/var/lib/awx/projects/backups" && mount | egrep "/var/lib/awx/projects/backups" || true"
-      changed_when: false
-    - name: Debug paths
-      command: bash -lc "id; umask; ls -ld /runner /runner/project; mount | egrep 'runner/project|projects' || true"
+    - name: Debug projects mount (must exist)
+      command: bash -lc "id; ls -ld /var/lib/awx/projects; mount | egrep 'awx/projects|projects-claim' || true"
       changed_when: false
 
-    - name: Create backup directory
+    - name: Create backup directory (on PVC)
       command: mkdir -p "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
       changed_when: false
 
@@ -32,7 +29,7 @@
           - display current-configuration
       register: cfg
 
-    - name: Save configuration to file
+    - name: Save configuration to file (on PVC)
       copy:
         content: "{{ cfg.stdout[0] | string }}"
         dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
