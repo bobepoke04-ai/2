@@ -38,3 +38,18 @@
     path: "{{ item.path }}"
     state: absent
     loop: "{{ old_files.files }}"
+    - name: Git add
+      command: git add backups
+      args:
+        chdir: /runner/project
+
+    - name: Git commit
+      command: git commit -m "auto backup {{ inventory_hostname }} {{ timestamp }}"
+      args:
+        chdir: /runner/project
+      ignore_errors: yes
+
+    - name: Git push
+      command: git push
+      args:
+        chdir: /runner/project
