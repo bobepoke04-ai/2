@@ -4,7 +4,7 @@
   gather_facts: false
 
   vars:
-    backup_root: "/runner/project/backups"
+    backup_root: "/var/lib/awx/projects/backups"
     today: "{{ lookup('pipe', 'date +%F') }}"
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
     keep_days: 30
