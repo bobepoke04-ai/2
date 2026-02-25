@@ -1,5 +1,5 @@
 ---
-- name: Backup Huawei Firewall (AWX Artifacts)
+- name: Backup Huawei Firewall (AWX pv)
   hosts: bj
   gather_facts: false
 
@@ -14,7 +14,7 @@
       command: bash -lc "ls -ld /runner/project && mount | egrep 'runner/project|projects' || true"
       changed_when: false
     - name: Debug paths
-      command: bash -lc "id; umask; ls -ld /runner /runner/artifacts || true; mount | head -n 50"
+      command: bash -lc "id; umask; ls -ld /runner /runner/project; mount | egrep 'runner/project|projects' || true"
       changed_when: false
 
     - name: Create backup directory
