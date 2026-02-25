@@ -1,13 +1,40 @@
-- hosts: bj
+* name: Backup Huawei Firewall
+  hosts: bj
   gather_facts: false
-  tasks:
-    - name: backup running config
-      community.network.ce_command:
-        commands:
-          - display current-configuration
-      register: cfg
+  vars:
+  backup_root: "/runner/project/backups"
+  today: "{{ lookup('pipe','date +%F') }}"
+  timestamp: "{{ lookup('pipe','date +%F_%H%M%S') }}"
+  keep_days: 30   # 🔥 保留天数，可自己改
 
-    - name: save to project dir
-      copy:
-        content: "{{ cfg.stdout[0] }}"
-        dest: "/runner/project/backups/{{ inventory_hostname }}_{{ lookup('pipe','date +%F_%H%M%S') }}.cfg"
+  tasks:
+
+  * name: Ensure backup directory exists
+    file:
+    path: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
+    state: directory
+    mode: '0755'
+
+  * name: Get firewall configuration
+    community.network.ce_command:
+    commands:
+    - display current-configuration
+    register: cfg
+
+  * name: Save configuration to file
+    copy:
+    content: "{{ cfg.stdout[0] }}"
+    dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+
+  * name: Cleanup old backups
+    find:
+    paths: "{{ backup_root }}/{{ inventory_hostname }}"
+    age: "{{ keep_days }}d"
+    recurse: yes
+    register: old_files
+
+  * name: Remove old backup files
+    file:
+    path: "{{ item.path }}"
+    state: absent
+    loop: "{{ old_files.files }}"
