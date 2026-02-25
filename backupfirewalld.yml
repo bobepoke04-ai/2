@@ -34,7 +34,16 @@
         content: "{{ cfg.stdout[0] | string }}"
         dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
         mode: "0644"
+    - name: Debug where the file was written
+      debug:
+        msg:
+          - "playbook_dir={{ playbook_dir }}"
+          - "backup_root={{ backup_root }}"
+          - "expected_file={{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
 
+    - name: List cfg files under backup_root (runner view)
+      command: bash -lc "ls -la {{ backup_root }}/{{ inventory_hostname }}/{{ today }}; find {{ backup_root }} -type f -name '*.cfg' | tail -n 20"
+      changed_when: false
     - name: Cleanup old backups (best effort)
       shell: |
         find "{{ backup_root }}/{{ inventory_hostname }}" -type f -name "*.cfg" -mtime +{{ keep_days }} -delete
