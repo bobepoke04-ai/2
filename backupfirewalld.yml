@@ -1,26 +1,61 @@
 ---
-- name: Backup Huawei Firewall to AWX Artifacts
+- name: Backup Huawei Firewall to Runner Artifacts (auto detect)
   hosts: bj
   gather_facts: false
 
   vars:
     today: "{{ lookup('pipe', 'date +%F') }}"
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
-    out_dir: "{{ awx_job_dir }}/artifacts/backups/{{ inventory_hostname }}/{{ today }}"
-    out_file: "{{ out_dir }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+    keep_days: 30
 
   tasks:
-    - name: Show awx_job_dir
+    - name: Detect runner artifacts dir (from env)
+      shell: |
+        set -e
+        echo "RUNNER_ARTIFACTS_DIR=${RUNNER_ARTIFACTS_DIR:-}"
+        echo "AWX_ISOLATED_DATA_DIR=${AWX_ISOLATED_DATA_DIR:-}"
+        if [ -n "${RUNNER_ARTIFACTS_DIR:-}" ]; then
+          echo "${RUNNER_ARTIFACTS_DIR}"
+          exit 0
+        fi
+        if [ -n "${AWX_ISOLATED_DATA_DIR:-}" ] && [ -d "${AWX_ISOLATED_DATA_DIR}/artifacts" ]; then
+          echo "${AWX_ISOLATED_DATA_DIR}/artifacts"
+          exit 0
+        fi
+        if [ -d "/runner/artifacts" ]; then
+          echo "/runner/artifacts"
+          exit 0
+        fi
+        # fallback (not persistent, but at least job succeeds)
+        echo "/runner/project"
+      args:
+        executable: /bin/bash
+      register: artifacts_root
+      changed_when: false
+
+    - name: Show chosen artifacts root
       debug:
         msg:
-          - "awx_job_dir={{ awx_job_dir | default('NOT_SET') }}"
-          - "out_file={{ out_file }}"
+          - "artifacts_root={{ artifacts_root.stdout_lines[-1] }}"
+          - "today={{ today }}"
+          - "timestamp={{ timestamp }}"
 
-    - name: Create artifacts dir
+    - name: Set output paths
+      set_fact:
+        out_root: "{{ artifacts_root.stdout_lines[-1] }}/backups"
+        out_dir: "{{ artifacts_root.stdout_lines[-1] }}/backups/{{ inventory_hostname }}/{{ today }}"
+        out_file: "{{ artifacts_root.stdout_lines[-1] }}/backups/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+
+    - name: Create output directory
       file:
         path: "{{ out_dir }}"
         state: directory
         mode: "0755"
+
+    - name: Disable terminal paging (best effort)
+      ansible.netcommon.cli_command:
+        command: screen-length 0 temporary
+      ignore_errors: true
 
     - name: Get firewall configuration
       community.network.ce_command:
@@ -28,8 +63,26 @@
           - display current-configuration
       register: cfg
 
-    - name: Save configuration to artifacts
+    - name: Save configuration to file
       copy:
         content: "{{ cfg.stdout[0] | string }}"
         dest: "{{ out_file }}"
         mode: "0644"
+
+    - name: List generated file
+      shell: |
+        set -e
+        ls -lah "{{ out_file }}" || true
+        echo "==== tail -n 2 (masked) ===="
+        tail -n 2 "{{ out_file }}" | sed 's/./*/g' || true
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Cleanup old backups (best effort)
+      shell: |
+        find "{{ out_root }}/{{ inventory_hostname }}" -type f -name "*.cfg" -mtime +{{ keep_days }} -delete
+      args:
+        executable: /bin/bash
+      changed_when: false
+      failed_when: false
