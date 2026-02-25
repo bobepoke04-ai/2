@@ -4,12 +4,15 @@
   gather_facts: false
 
   vars:
-    backup_root: "/var/lib/awx/projects/backups"
+    backup_root: "/runner/project/backups"
     today: "{{ lookup('pipe', 'date +%F') }}"
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
     keep_days: 30
 
   tasks:
+    - name: Where is /runner/project really?
+      command: bash -lc "id; pwd; ls -ld /runner/project; df -h /runner/project; mount | egrep 'runner/project|projects' || true; ls -la /runner/project | head -n 30"
+      changed_when: false
     - name: Disable terminal paging (best effort)
       ansible.netcommon.cli_command:
         command: screen-length 0 temporary
