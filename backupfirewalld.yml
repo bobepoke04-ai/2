@@ -1,11 +1,13 @@
 - hosts: bj
   gather_facts: false
   tasks:
-    - name: display version
+    - name: backup running config
       community.network.ce_command:
         commands:
-          - display version
-      register: out
+          - display current-configuration
+      register: cfg
 
-    - debug:
-        var: out.stdout_lines
+    - name: save to project dir
+      copy:
+        content: "{{ cfg.stdout[0] }}"
+        dest: "/runner/project/backups/{{ inventory_hostname }}_{{ lookup('pipe','date +%F_%H%M%S') }}.cfg"
