@@ -1,34 +1,27 @@
 ---
-- name: Backup Huawei Firewall to AWX Projects PV
+- name: Backup Huawei Firewall (AWX Artifacts)
   hosts: bj
   gather_facts: false
 
   vars:
-    backup_root: "/var/lib/awx/projects/backups"
+    backup_root: "/runner/artifacts/backups"
     today: "{{ lookup('pipe', 'date +%F') }}"
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
     keep_days: 30
 
   tasks:
-    - name: Debug whoami and perms
-      command: bash -lc "id; umask; ls -ld /var/lib/awx /var/lib/awx/projects; touch /var/lib/awx/projects/.t && rm -f /var/lib/awx/projects/.t"
-      changed_when: false
-    - name: Create base backups dir with mkdir (avoid file module parent-dir checks)
-      command: mkdir -p "{{ backup_root }}"
+    - name: Debug paths
+      command: bash -lc "id; umask; ls -ld /runner /runner/artifacts || true; mount | head -n 50"
       changed_when: false
 
-    - name: Verify write permission on projects PV
-      command: bash -lc "touch {{ backup_root }}/.write_test && rm -f {{ backup_root }}/.write_test"
+    - name: Create backup directory
+      command: mkdir -p "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
       changed_when: false
 
     - name: Disable terminal paging (best effort)
       ansible.netcommon.cli_command:
         command: screen-length 0 temporary
       ignore_errors: true
-
-    - name: Create device/date directory
-      command: mkdir -p "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
-      changed_when: false
 
     - name: Get firewall configuration
       community.network.ce_command:
@@ -40,19 +33,12 @@
       copy:
         content: "{{ cfg.stdout[0] | string }}"
         dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
-        mode: "0664"
+        mode: "0644"
 
-    - name: Find old backup files
-      find:
-        paths: "{{ backup_root }}/{{ inventory_hostname }}"
-        recurse: true
-        file_type: file
-        age: "{{ keep_days }}d"
-      register: old_files
-
-    - name: Remove old backup files
-      file:
-        path: "{{ item.path }}"
-        state: absent
-      loop: "{{ old_files.files }}"
-      when: old_files.matched | int > 0
+    - name: Cleanup old backups (best effort)
+      shell: |
+        find "{{ backup_root }}/{{ inventory_hostname }}" -type f -name "*.cfg" -mtime +{{ keep_days }} -delete
+      args:
+        executable: /bin/bash
+      changed_when: false
+      failed_when: false
