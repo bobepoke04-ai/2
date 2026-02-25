@@ -1,54 +1,35 @@
 ---
-- name: Backup Huawei Firewall to Projects PVC (kubectl + base64)
+- name: Backup Huawei Firewall to AWX Artifacts
   hosts: bj
   gather_facts: false
 
   vars:
-    ns: awx
-    task_deploy: awx-demo-task
-
-    # 你的 projects PVC 下项目目录（当前是 _9__bj）
-    pvc_root: "/var/lib/awx/projects/_9__bj/backups"
-
     today: "{{ lookup('pipe', 'date +%F') }}"
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
-
-    dest_dir: "{{ pvc_root }}/{{ inventory_hostname }}/{{ today }}"
-    dest_file: "{{ dest_dir }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+    out_dir: "{{ awx_job_dir }}/artifacts/backups/{{ inventory_hostname }}/{{ today }}"
+    out_file: "{{ out_dir }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
 
   tasks:
-    - name: Check kubeconfig file exists in EE
-      command: bash -lc "ls -l /etc/kube/config | cat"
-      changed_when: false
-    - name: Check in-cluster auth files
-      command: bash -lc 'env | egrep "KUBERNETES_SERVICE" || true; ls -l /var/run/secrets/kubernetes.io/serviceaccount || true'
-      changed_when: false
+    - name: Show awx_job_dir
+      debug:
+        msg:
+          - "awx_job_dir={{ awx_job_dir | default('NOT_SET') }}"
+          - "out_file={{ out_file }}"
+
+    - name: Create artifacts dir
+      file:
+        path: "{{ out_dir }}"
+        state: directory
+        mode: "0755"
+
     - name: Get firewall configuration
       community.network.ce_command:
         commands:
           - display current-configuration
       register: cfg
 
-    - name: Create dir on task pod PVC
-      command: >
-        kubectl -n {{ ns }} exec deploy/{{ task_deploy }} -- bash -lc
-        "mkdir -p '{{ dest_dir }}'"
-      changed_when: false
-
-    # 把配置内容在 runner 中编码成 base64（避免 stdin）
-    - name: Encode config to base64 on runner
-      set_fact:
-        cfg_b64: "{{ (cfg.stdout[0] | string) | b64encode }}"
-
-    # 在 task pod 里解码写文件
-    - name: Write cfg into PVC via kubectl (no stdin)
-      command: >
-        kubectl -n {{ ns }} exec deploy/{{ task_deploy }} -- bash -lc
-        "echo '{{ cfg_b64 }}' | base64 -d > '{{ dest_file }}' && chmod 0644 '{{ dest_file }}'"
-      changed_when: true
-
-    - name: Verify file on task pod
-      command: >
-        kubectl -n {{ ns }} exec deploy/{{ task_deploy }} -- bash -lc
-        "ls -lh '{{ dest_file }}' | cat"
-      changed_when: false
+    - name: Save configuration to artifacts
+      copy:
+        content: "{{ cfg.stdout[0] | string }}"
+        dest: "{{ out_file }}"
+        mode: "0644"
