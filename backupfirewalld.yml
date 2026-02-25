@@ -1,5 +1,5 @@
 ---
-- name: Backup Huawei Firewall (AWX collected artifacts)
+- name: Backup Huawei Firewall to Project backups folder + runner inspection
   hosts: bj
   gather_facts: false
 
@@ -8,24 +8,64 @@
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
     keep_days: 30
 
+    # 备份写入项目目录（通常是 /runner/project）
+    backup_root: "{{ playbook_dir }}/backups"
+
+    # 你关心的 projects PVC 项目目录名
+    project_dir_name: "_9__bj"
+
   tasks:
-    - name: Show isolated dir
+    - name: Show key paths
       debug:
         msg:
-          - "AWX_ISOLATED_DATA_DIR={{ lookup('env','AWX_ISOLATED_DATA_DIR') | default('NOT_SET', true) }}"
-          - "RUNNER_ARTIFACTS_DIR={{ lookup('env','RUNNER_ARTIFACTS_DIR') | default('NOT_SET', true) }}"
+          - "playbook_dir={{ playbook_dir }}"
+          - "backup_root={{ backup_root }}"
+          - "expected_cfg={{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
 
-    - name: Set artifacts paths (must be under AWX_ISOLATED_DATA_DIR/artifacts)
-      set_fact:
-        isolated_dir: "{{ lookup('env','AWX_ISOLATED_DATA_DIR') | default('/runner', true) }}"
-        artifacts_base: "{{ (lookup('env','AWX_ISOLATED_DATA_DIR') | default('/runner', true)) }}/artifacts"
-        out_root: "{{ (lookup('env','AWX_ISOLATED_DATA_DIR') | default('/runner', true)) }}/artifacts/backups"
-        out_dir: "{{ (lookup('env','AWX_ISOLATED_DATA_DIR') | default('/runner', true)) }}/artifacts/backups/{{ inventory_hostname }}/{{ today }}"
-        out_file: "{{ (lookup('env','AWX_ISOLATED_DATA_DIR') | default('/runner', true)) }}/artifacts/backups/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+    # ---- runner 是否能看到 projects PVC / _9__bj 的“证据” ----
+    - name: Probe runner filesystem for projects dirs and mounts
+      shell: |
+        set -e
+        echo "=== whoami ==="
+        id || true
+        echo "=== env hints ==="
+        echo "AWX_ISOLATED_DATA_DIR=${AWX_ISOLATED_DATA_DIR:-}"
+        echo "RUNNER_ARTIFACTS_DIR=${RUNNER_ARTIFACTS_DIR:-}"
+        echo "=== mounts (filtered) ==="
+        mount | egrep 'awx|project|projects|runner|local-path|pvc' || true
+        echo "=== playbook_dir listing ==="
+        ls -la "{{ playbook_dir }}" | head -n 200 || true
+        echo "=== check common project locations ==="
+        for p in \
+          "/var/lib/awx/projects" \
+          "/var/lib/awx/projects/{{ project_dir_name }}" \
+          "/runner/project" \
+          "/runner/project/.git" \
+          "/runner/project/backupfirewalld.yml" \
+          "/runner/project/backups" \
+        ; do
+          if [ -e "$p" ]; then
+            echo "[OK] exists: $p"
+            ls -la "$p" | head -n 50 || true
+          else
+            echo "[NO] missing: $p"
+          fi
+        done
+      args:
+        executable: /bin/bash
+      register: probe
+      changed_when: false
 
-    - name: Create artifacts output directory
+    - name: Summarize runner access to _9__bj
+      debug:
+        msg:
+          - "Runner probe done. If you see /var/lib/awx/projects/{{ project_dir_name }} or /runner/project contains .git, runner likely sees the projects PVC."
+          - "Key check: look for [OK] exists lines above."
+
+    # ---- 真正备份 ----
+    - name: Create backup directory under project
       file:
-        path: "{{ out_dir }}"
+        path: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
         state: directory
         mode: "0755"
 
@@ -40,20 +80,25 @@
           - display current-configuration
       register: cfg
 
-    - name: Save configuration to AWX artifacts (will be collected)
+    - name: Save configuration to file (project backups)
       copy:
         content: "{{ cfg.stdout[0] | string }}"
-        dest: "{{ out_file }}"
+        dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
         mode: "0644"
 
-    - name: Confirm file exists
-      command: bash -lc "ls -lah '{{ out_file }}' | cat"
+    - name: Confirm cfg file exists (runner view)
+      command: bash -lc "ls -lah '{{ backup_root }}/{{ inventory_hostname }}/{{ today }}' | cat"
       changed_when: false
 
-    - name: Cleanup old backups inside artifacts (best effort)
+    - name: Cleanup old backups (best effort)
       shell: |
-        find "{{ out_root }}/{{ inventory_hostname }}" -type f -name "*.cfg" -mtime +{{ keep_days }} -delete
+        find "{{ backup_root }}/{{ inventory_hostname }}" -type f -name "*.cfg" -mtime +{{ keep_days }} -delete
       args:
         executable: /bin/bash
       changed_when: false
       failed_when: false
+
+    # ---- 保活：方便你找 runner pod 并 kubectl exec/cp ----
+    - name: Keep runner alive for manual inspection (5 min)
+      command: bash -lc "echo 'RUNNER_HOST='$(hostname); echo 'CFG_DIR={{ backup_root }}/{{ inventory_hostname }}/{{ today }}'; sleep 300"
+      changed_when: false
