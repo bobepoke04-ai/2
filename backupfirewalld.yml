@@ -1,56 +1,81 @@
 ---
-* name: Backup Huawei Firewall
+- name: Backup Huawei Firewall and Push to Git
   hosts: bj
   gather_facts: false
+
   vars:
-  backup_root: "/runner/project/backups"
-  today: "{{ lookup('pipe','date +%F') }}"
-  timestamp: "{{ lookup('pipe','date +%F_%H%M%S') }}"
-  keep_days: 30   # 🔥 保留天数，可自己改
+    backup_root: "/runner/project/backups"
+    today: "{{ lookup('pipe', 'date +%F') }}"
+    timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
+    keep_days: 30
+
+    # Git commit 信息
+    git_commit_msg: "auto backup {{ inventory_hostname }} {{ timestamp }}"
 
   tasks:
+    # 关闭分页（华为常见：---- More ----）
+    # 有的设备/版本不认也没关系，不影响执行
+    - name: Disable terminal paging (best effort)
+      ansible.netcommon.cli_command:
+        command: screen-length 0 temporary
+      ignore_errors: true
 
-  * name: Ensure backup directory exists
-    file:
-    path: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
-    state: directory
-    mode: '0755'
+    - name: Ensure backup directory exists
+      file:
+        path: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
+        state: directory
+        mode: "0755"
 
-  * name: Get firewall configuration
-    community.network.ce_command:
-    commands:
-    - display current-configuration
-    register: cfg
+    - name: Get firewall configuration
+      community.network.ce_command:
+        commands:
+          - display current-configuration
+      register: cfg
 
-  * name: Save configuration to file
-    copy:
-    content: "{{ cfg.stdout[0] }}"
-    dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+    - name: Save configuration to file
+      copy:
+        content: "{{ cfg.stdout[0] }}"
+        dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+        mode: "0644"
 
-  * name: Cleanup old backups
-    find:
-    paths: "{{ backup_root }}/{{ inventory_hostname }}"
-    age: "{{ keep_days }}d"
-    recurse: yes
-    register: old_files
+    - name: Find old backup files
+      find:
+        paths: "{{ backup_root }}/{{ inventory_hostname }}"
+        recurse: true
+        file_type: file
+        age: "{{ keep_days }}d"
+      register: old_files
 
-  * name: Remove old backup files
-    file:
-    path: "{{ item.path }}"
-    state: absent
-    loop: "{{ old_files.files }}"
-    - name: Git add
+    - name: Remove old backup files
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_files.files }}"
+      when: old_files.matched | int > 0
+
+    # ====== Git push 部分 ======
+    - name: Check repo status
+      command: git status --porcelain
+      args:
+        chdir: /runner/project
+      register: git_status
+
+    - name: Git add backups
       command: git add backups
       args:
         chdir: /runner/project
+      when: git_status.stdout | length > 0
 
-    - name: Git commit
-      command: git commit -m "auto backup {{ inventory_hostname }} {{ timestamp }}"
+    - name: Git commit backups
+      command: git commit -m "{{ git_commit_msg }}"
       args:
         chdir: /runner/project
-      ignore_errors: yes
+      when: git_status.stdout | length > 0
+      register: git_commit
+      failed_when: false
 
     - name: Git push
       command: git push
       args:
         chdir: /runner/project
+      when: git_status.stdout | length > 0
