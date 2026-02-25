@@ -9,6 +9,9 @@
     keep_days: 30
 
   tasks:
+    - name: Keep runner alive for download (3 min)
+      command: bash -lc "echo 'sleeping...'; sleep 180"
+      changed_when: false
     - name: Detect runner artifacts dir (from env)
       shell: |
         set -e
