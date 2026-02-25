@@ -1,5 +1,5 @@
 ---
-- name: Backup Huawei Firewall and Push to Git
+- name: Backup Huawei Firewall to AWX Projects PV
   hosts: bj
   gather_facts: false
 
@@ -9,22 +9,23 @@
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
     keep_days: 30
 
-    # Git commit 信息
-    git_commit_msg: "auto backup {{ inventory_hostname }} {{ timestamp }}"
-
   tasks:
-    # 关闭分页（华为常见：---- More ----）
-    # 有的设备/版本不认也没关系，不影响执行
+    - name: Ensure backups base dir exists (under projects PV)
+      file:
+        path: "{{ backup_root }}"
+        state: directory
+        mode: "0775"
+
     - name: Disable terminal paging (best effort)
       ansible.netcommon.cli_command:
         command: screen-length 0 temporary
       ignore_errors: true
 
-    - name: Ensure backup directory exists
+    - name: Ensure device/date directory exists
       file:
         path: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
         state: directory
-        mode: "0755"
+        mode: "0775"
 
     - name: Get firewall configuration
       community.network.ce_command:
@@ -34,9 +35,9 @@
 
     - name: Save configuration to file
       copy:
-        content: "{{ cfg.stdout[0] }}"
+        content: "{{ cfg.stdout[0] | string }}"
         dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
-        mode: "0644"
+        mode: "0664"
 
     - name: Find old backup files
       find:
@@ -52,30 +53,3 @@
         state: absent
       loop: "{{ old_files.files }}"
       when: old_files.matched | int > 0
-
-    # ====== Git push 部分 ======
-    - name: Check repo status
-      command: git status --porcelain
-      args:
-        chdir: /runner/project
-      register: git_status
-
-    - name: Git add backups
-      command: git add backups
-      args:
-        chdir: /runner/project
-      when: git_status.stdout | length > 0
-
-    - name: Git commit backups
-      command: git commit -m "{{ git_commit_msg }}"
-      args:
-        chdir: /runner/project
-      when: git_status.stdout | length > 0
-      register: git_commit
-      failed_when: false
-
-    - name: Git push
-      command: git push
-      args:
-        chdir: /runner/project
-      when: git_status.stdout | length > 0
