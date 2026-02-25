@@ -1,5 +1,11 @@
 - hosts: bj
   gather_facts: false
   tasks:
-    - ansible.netcommon.cli_command:
-        command: display version
+    - name: display version
+      community.network.ce_command:
+        commands:
+          - display version
+      register: out
+
+    - debug:
+        var: out.stdout_lines
