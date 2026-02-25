@@ -10,22 +10,22 @@
     keep_days: 30
 
   tasks:
-    - name: Ensure backups base dir exists (under projects PV)
-      file:
-        path: "{{ backup_root }}"
-        state: directory
-        mode: "0775"
+    - name: Create base backups dir with mkdir (avoid file module parent-dir checks)
+      command: mkdir -p "{{ backup_root }}"
+      changed_when: false
+
+    - name: Verify write permission on projects PV
+      command: bash -lc "touch {{ backup_root }}/.write_test && rm -f {{ backup_root }}/.write_test"
+      changed_when: false
 
     - name: Disable terminal paging (best effort)
       ansible.netcommon.cli_command:
         command: screen-length 0 temporary
       ignore_errors: true
 
-    - name: Ensure device/date directory exists
-      file:
-        path: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
-        state: directory
-        mode: "0775"
+    - name: Create device/date directory
+      command: mkdir -p "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
+      changed_when: false
 
     - name: Get firewall configuration
       community.network.ce_command:
