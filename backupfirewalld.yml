@@ -17,6 +17,9 @@
     dest_file: "{{ dest_dir }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
 
   tasks:
+    - name: Check kubeconfig file exists in EE
+      command: bash -lc "ls -l /etc/kube/config | cat"
+      changed_when: false
     - name: Check in-cluster auth files
       command: bash -lc 'env | egrep "KUBERNETES_SERVICE" || true; ls -l /var/run/secrets/kubernetes.io/serviceaccount || true'
       changed_when: false
