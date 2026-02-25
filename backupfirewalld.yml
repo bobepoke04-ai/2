@@ -1,21 +1,31 @@
 ---
-- name: Backup Huawei Firewall (Project backups folder)
+- name: Backup Huawei Firewall (fetch to projects PVC)
   hosts: bj
   gather_facts: false
 
   vars:
-    backup_root: "{{ playbook_dir }}/backups"
+    # runner 容器里临时保存一份（job 运行时肯定可写）
+    tmp_root: "/tmp/backups"
+
+    # ✅ 目标：写入 projects PVC（当前已确认项目目录为 _9__bj）
+    # 如果以后目录名变了，我可以再给你做“自动发现项目目录”的版本
+    pvc_root: "/var/lib/awx/projects/_9__bj/backups"
+
     today: "{{ lookup('pipe', 'date +%F') }}"
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
     keep_days: 30
 
   tasks:
-    - name: Show backup root
-      command: bash -lc "pwd; echo playbook_dir={{ playbook_dir }}; ls -la {{ playbook_dir }} | head -n 50"
-      changed_when: false
+    - name: Show paths (debug)
+      debug:
+        msg:
+          - "tmp_root={{ tmp_root }}"
+          - "pvc_root={{ pvc_root }}"
+          - "today={{ today }}"
+          - "timestamp={{ timestamp }}"
 
-    - name: Create backup directory
-      command: mkdir -p "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
+    - name: Create temp dir on runner
+      command: mkdir -p "{{ tmp_root }}/{{ inventory_hostname }}/{{ today }}"
       changed_when: false
 
     - name: Disable terminal paging (best effort)
@@ -29,27 +39,36 @@
           - display current-configuration
       register: cfg
 
-    - name: Save configuration to file
+    - name: Save cfg on runner tmp
       copy:
         content: "{{ cfg.stdout[0] | string }}"
-        dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+        dest: "{{ tmp_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
         mode: "0644"
-    - name: Debug where the file was written
-      debug:
-        msg:
-          - "playbook_dir={{ playbook_dir }}"
-          - "backup_root={{ backup_root }}"
-          - "expected_file={{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
-    - name: Prove whether /runner/project is persistent
-      command: bash -lc "ls -ld /runner/project; df -hT /runner/project || true; mount | egrep 'runner/project|local-path|projects' || true"
-      changed_when: false
 
-    - name: List cfg files under backup_root (runner view)
-      command: bash -lc "ls -la {{ backup_root }}/{{ inventory_hostname }}/{{ today }}; find {{ backup_root }} -type f -name '*.cfg' | tail -n 20"
+    # 目标目录在 controller(=AWX 侧)创建；即使 mkdir 失败也继续尝试 fetch
+    - name: Ensure dest dir exists on projects PVC (controller side)
+      command: mkdir -p "{{ pvc_root }}/{{ inventory_hostname }}/{{ today }}"
       changed_when: false
-    - name: Cleanup old backups (best effort)
+      failed_when: false
+
+    # 关键：fetch 会把 src(远端/runner) 拉回 controller(AWX) 并写到 pvc_root
+    - name: Fetch cfg back to controller into projects PVC
+      fetch:
+        src: "{{ tmp_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+        dest: "{{ pvc_root }}/{{ inventory_hostname }}/{{ today }}/"
+        flat: true
+
+    - name: Cleanup old backups on projects PVC (best effort)
       shell: |
-        find "{{ backup_root }}/{{ inventory_hostname }}" -type f -name "*.cfg" -mtime +{{ keep_days }} -delete
+        find "{{ pvc_root }}/{{ inventory_hostname }}" -type f -name "*.cfg" -mtime +{{ keep_days }} -delete
+      args:
+        executable: /bin/bash
+      changed_when: false
+      failed_when: false
+
+    - name: List last 5 backups on projects PVC (controller side)
+      shell: |
+        ls -lt "{{ pvc_root }}/{{ inventory_hostname }}/{{ today }}" | head -n 6
       args:
         executable: /bin/bash
       changed_when: false
