@@ -4,12 +4,15 @@
   gather_facts: false
 
   vars:
-    backup_root: "/runner/artifacts/backups"
+    backup_root: "/runner/project/backups"
     today: "{{ lookup('pipe', 'date +%F') }}"
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
     keep_days: 30
 
   tasks:
+    - name: Verify /runner/project is mounted
+      command: bash -lc "ls -ld /runner/project && mount | egrep 'runner/project|projects' || true"
+      changed_when: false
     - name: Debug paths
       command: bash -lc "id; umask; ls -ld /runner /runner/artifacts || true; mount | head -n 50"
       changed_when: false
