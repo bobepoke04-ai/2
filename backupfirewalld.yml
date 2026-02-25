@@ -1,64 +1,53 @@
 ---
-- name: Backup Huawei Firewall (save locally then fetch to controller)
+- name: Backup Huawei Firewall to Projects PVC via kubectl exec
   hosts: bj
   gather_facts: false
 
   vars:
-    # runner 本地临时目录（一定可写）
-    tmp_root: "/tmp/backups"
+    ns: "awx"
+    task_deploy: "awx-demo-task"
 
-    # 目标：projects PVC 下你的项目目录（目前是 _9__bj）
     pvc_root: "/var/lib/awx/projects/_9__bj/backups"
 
     today: "{{ lookup('pipe', 'date +%F') }}"
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
-    keep_days: 30
+
+    tmp_file: "/tmp/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+    dest_dir: "{{ pvc_root }}/{{ inventory_hostname }}/{{ today }}"
+    dest_file: "{{ dest_dir }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
 
   tasks:
-    - name: Get firewall configuration (on device)
+    - name: Get firewall configuration
       community.network.ce_command:
         commands:
           - display current-configuration
       register: cfg
 
-    # ===== 在 runner 本地生成文件（不是在设备上）=====
-    - name: Create temp dir on runner (localhost)
-      command: mkdir -p "{{ tmp_root }}/{{ inventory_hostname }}/{{ today }}"
-      delegate_to: localhost
-      changed_when: false
-
-    - name: Save cfg to runner temp file (localhost)
+    - name: Write cfg to runner tmp file
       copy:
         content: "{{ cfg.stdout[0] | string }}"
-        dest: "{{ tmp_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+        dest: "{{ tmp_file }}"
         mode: "0644"
-      delegate_to: localhost
 
-    - name: List temp file (localhost)
-      command: bash -lc "ls -la {{ tmp_root }}/{{ inventory_hostname }}/{{ today }} | tail -n 20"
-      delegate_to: localhost
+    - name: Ensure dest dir on task pod (projects PVC)
+      command: >
+        kubectl -n {{ ns }} exec deploy/{{ task_deploy }} -- bash -lc
+        "mkdir -p '{{ dest_dir }}' && ls -ld '{{ pvc_root }}' '{{ dest_dir }}'"
       changed_when: false
 
-    # ===== 确保 controller 侧目录存在（尽量做，不行也不阻塞）=====
-    - name: Ensure dest dir exists on projects PVC (controller side best effort)
-      command: mkdir -p "{{ pvc_root }}/{{ inventory_hostname }}/{{ today }}"
-      delegate_to: localhost
-      changed_when: false
-      failed_when: false
-
-    # ===== 从 runner 拉回到 controller 并写入 pvc_root =====
-    - name: Fetch cfg from runner to controller into projects PVC
-      fetch:
-        src: "{{ tmp_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
-        dest: "{{ pvc_root }}/{{ inventory_hostname }}/{{ today }}/"
-        flat: true
-      delegate_to: localhost
-
-    - name: Cleanup old backups on projects PVC (best effort)
+    - name: Copy tmp file content into task pod dest file (projects PVC)
       shell: |
-        find "{{ pvc_root }}/{{ inventory_hostname }}" -type f -name "*.cfg" -mtime +{{ keep_days }} -delete
+        set -e
+        # 把本地 tmp_file 内容通过 stdin 写到 task pod 的 dest_file
+        kubectl -n {{ ns }} exec -i deploy/{{ task_deploy }} -- bash -lc "cat > '{{ dest_file }}' && chmod 0644 '{{ dest_file }}'"
       args:
         executable: /bin/bash
-      delegate_to: localhost
+      changed_when: true
+      # 关键：把文件内容喂给上面的命令
+      stdin: "{{ lookup('file', tmp_file) }}"
+
+    - name: Verify file exists on task pod
+      command: >
+        kubectl -n {{ ns }} exec deploy/{{ task_deploy }} -- bash -lc
+        "ls -la '{{ dest_file }}' && tail -n 3 '{{ dest_file }}' | sed -e 's/./*/g' || true"
       changed_when: false
-      failed_when: false
