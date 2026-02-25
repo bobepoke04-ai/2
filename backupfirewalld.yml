@@ -1,4 +1,7 @@
 ---
+- name: Debug whoami and perms
+  command: bash -lc "id; umask; ls -ld /var/lib/awx /var/lib/awx/projects; touch /var/lib/awx/projects/.t && rm -f /var/lib/awx/projects/.t"
+  changed_when: false
 - name: Backup Huawei Firewall to AWX Projects PV
   hosts: bj
   gather_facts: false
