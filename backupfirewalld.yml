@@ -40,6 +40,9 @@
           - "playbook_dir={{ playbook_dir }}"
           - "backup_root={{ backup_root }}"
           - "expected_file={{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+    - name: Prove whether /runner/project is persistent
+      command: bash -lc "ls -ld /runner/project; df -hT /runner/project || true; mount | egrep 'runner/project|local-path|projects' || true"
+      changed_when: false
 
     - name: List cfg files under backup_root (runner view)
       command: bash -lc "ls -la {{ backup_root }}/{{ inventory_hostname }}/{{ today }}; find {{ backup_root }} -type f -name '*.cfg' | tail -n 20"
