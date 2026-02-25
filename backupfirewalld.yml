@@ -11,7 +11,7 @@
 
   tasks:
     - name: Verify /runner/project is mounted
-      command: bash -lc "ls -ld /runner/project && mount | egrep 'runner/project|projects' || true"
+      command: bash -lc "ls -ld "/var/lib/awx/projects/backups" && mount | egrep "/var/lib/awx/projects/backups" || true"
       changed_when: false
     - name: Debug paths
       command: bash -lc "id; umask; ls -ld /runner /runner/project; mount | egrep 'runner/project|projects' || true"
