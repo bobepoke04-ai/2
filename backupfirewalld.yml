@@ -52,35 +52,57 @@
       failed_when: false
 
     # --- Git commit/push ---
-    - name: Configure git identity (local repo)
+    - name: Debug playbook_dir and list
       shell: |
-        git config user.name "{{ git_user_name }}"
-        git config user.email "{{ git_user_email }}"
+        echo "playbook_dir={{ playbook_dir }}"
+        pwd
+        ls -la "{{ playbook_dir }}" | head -n 200 || true
+        find "{{ playbook_dir }}" -maxdepth 3 -type d -name ".git" -print || true
       args:
-        chdir: "{{ repo_root }}"
         executable: /bin/bash
       changed_when: false
 
-    - name: Show git status
-      shell: git status --porcelain
-      args:
-        chdir: "{{ repo_root }}"
-        executable: /bin/bash
-      register: git_status
-      changed_when: false
-
-    - name: Commit and push if changes
+    - name: Discover git repo root (nearest .git)
       shell: |
         set -e
-        git add backups/
-        if [ -z "$(git status --porcelain)" ]; then
-          echo "No changes to commit."
+        d="{{ playbook_dir }}"
+        # 向上找 5 层（够用）
+        for i in 0 1 2 3 4 5; do
+          if [ -d "$d/.git" ]; then
+            echo "$d"
+            exit 0
+          fi
+          d="$(dirname "$d")"
+        done
+        # 向下找 3 层（有时 playbook 在子目录）
+        f="$(find "{{ playbook_dir }}" -maxdepth 3 -type d -name .git | head -n 1 || true)"
+        if [ -n "$f" ]; then
+          dirname "$f"
           exit 0
         fi
-        git commit -m "backup({{ inventory_hostname }}): {{ today }} {{ timestamp }}"
-        # 尝试直接 push；失败则 rebase 后再 push（处理并发）
-        git push || (git pull --rebase && git push)
+        echo "NO_GIT_REPO_FOUND"
+        exit 0
+      args:
+        executable: /bin/bash
+      register: repo_root_detect
+      changed_when: false
+
+    - name: Fail if not a git repo (show hint)
+      fail:
+        msg: >
+          Cannot find a git repo (.git) around playbook_dir={{ playbook_dir }}.
+          Ensure AWX Project is SCM-based and synced successfully.
+      when: repo_root_detect.stdout == "NO_GIT_REPO_FOUND"
+
+    - name: Set repo_root fact
+      set_fact:
+        repo_root: "{{ repo_root_detect.stdout }}"
+
+    - name: Configure git identity (local repo)
+      shell: |
+        git config user.name "awx-backup-bot"
+        git config user.email "awx-backup-bot@example.local"
       args:
         chdir: "{{ repo_root }}"
         executable: /bin/bash
-      when: git_status.stdout | length > 0
+      changed_when: false
