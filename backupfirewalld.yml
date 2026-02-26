@@ -1,5 +1,5 @@
 ---
-- name: Backup Huawei Firewall to Project backups folder + runner inspection
+- name: Backup Huawei Firewall and push to Git
   hosts: bj
   gather_facts: false
 
@@ -8,62 +8,19 @@
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
     keep_days: 30
 
-    # 备份写入项目目录（通常是 /runner/project）
-    backup_root: "{{ playbook_dir }}/backups"
-
-    # 你关心的 projects PVC 项目目录名
-    project_dir_name: "_9__bj"
+    repo_root: "{{ playbook_dir }}"                 # AWX checkout 目录，通常 /runner/project
+    backup_root: "{{ playbook_dir }}/backups"       # 写入仓库内 backups/
+    git_user_name: "awx-backup-bot"
+    git_user_email: "awx-backup-bot@example.local"
 
   tasks:
-    - name: Show key paths
+    - name: Show repo root
       debug:
         msg:
-          - "playbook_dir={{ playbook_dir }}"
+          - "repo_root={{ repo_root }}"
           - "backup_root={{ backup_root }}"
-          - "expected_cfg={{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
 
-    # ---- runner 是否能看到 projects PVC / _9__bj 的“证据” ----
-    - name: Probe runner filesystem for projects dirs and mounts
-      shell: |
-        set -e
-        echo "=== whoami ==="
-        id || true
-        echo "=== env hints ==="
-        echo "AWX_ISOLATED_DATA_DIR=${AWX_ISOLATED_DATA_DIR:-}"
-        echo "RUNNER_ARTIFACTS_DIR=${RUNNER_ARTIFACTS_DIR:-}"
-        echo "=== mounts (filtered) ==="
-        mount | egrep 'awx|project|projects|runner|local-path|pvc' || true
-        echo "=== playbook_dir listing ==="
-        ls -la "{{ playbook_dir }}" | head -n 200 || true
-        echo "=== check common project locations ==="
-        for p in \
-          "/var/lib/awx/projects" \
-          "/var/lib/awx/projects/{{ project_dir_name }}" \
-          "/runner/project" \
-          "/runner/project/.git" \
-          "/runner/project/backupfirewalld.yml" \
-          "/runner/project/backups" \
-        ; do
-          if [ -e "$p" ]; then
-            echo "[OK] exists: $p"
-            ls -la "$p" | head -n 50 || true
-          else
-            echo "[NO] missing: $p"
-          fi
-        done
-      args:
-        executable: /bin/bash
-      register: probe
-      changed_when: false
-
-    - name: Summarize runner access to _9__bj
-      debug:
-        msg:
-          - "Runner probe done. If you see /var/lib/awx/projects/{{ project_dir_name }} or /runner/project contains .git, runner likely sees the projects PVC."
-          - "Key check: look for [OK] exists lines above."
-
-    # ---- 真正备份 ----
-    - name: Create backup directory under project
+    - name: Ensure backup dir exists
       file:
         path: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
         state: directory
@@ -80,15 +37,11 @@
           - display current-configuration
       register: cfg
 
-    - name: Save configuration to file (project backups)
+    - name: Write cfg into repo
       copy:
         content: "{{ cfg.stdout[0] | string }}"
         dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
         mode: "0644"
-
-    - name: Confirm cfg file exists (runner view)
-      command: bash -lc "ls -lah '{{ backup_root }}/{{ inventory_hostname }}/{{ today }}' | cat"
-      changed_when: false
 
     - name: Cleanup old backups (best effort)
       shell: |
@@ -98,7 +51,36 @@
       changed_when: false
       failed_when: false
 
-    # ---- 保活：方便你找 runner pod 并 kubectl exec/cp ----
-    - name: Keep runner alive for manual inspection (5 min)
-      command: bash -lc "echo 'RUNNER_HOST='$(hostname); echo 'CFG_DIR={{ backup_root }}/{{ inventory_hostname }}/{{ today }}'; sleep 300"
+    # --- Git commit/push ---
+    - name: Configure git identity (local repo)
+      shell: |
+        git config user.name "{{ git_user_name }}"
+        git config user.email "{{ git_user_email }}"
+      args:
+        chdir: "{{ repo_root }}"
+        executable: /bin/bash
       changed_when: false
+
+    - name: Show git status
+      shell: git status --porcelain
+      args:
+        chdir: "{{ repo_root }}"
+        executable: /bin/bash
+      register: git_status
+      changed_when: false
+
+    - name: Commit and push if changes
+      shell: |
+        set -e
+        git add backups/
+        if [ -z "$(git status --porcelain)" ]; then
+          echo "No changes to commit."
+          exit 0
+        fi
+        git commit -m "backup({{ inventory_hostname }}): {{ today }} {{ timestamp }}"
+        # 尝试直接 push；失败则 rebase 后再 push（处理并发）
+        git push || (git pull --rebase && git push)
+      args:
+        chdir: "{{ repo_root }}"
+        executable: /bin/bash
+      when: git_status.stdout | length > 0
