@@ -9,7 +9,7 @@
     keep_days: 30
 
     repo_root: "{{ playbook_dir }}"                 # AWX checkout 目录，通常 /runner/project
-    backup_root: "{{ playbook_dir }}/backups"       # 写入仓库内 backups/
+    backup_root: "backup"       # 写入pod内 backup/
     git_user_name: "awx-backup-bot"
     git_user_email: "awx-backup-bot@example.local"
 
