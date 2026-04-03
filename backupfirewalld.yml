@@ -52,15 +52,15 @@
       failed_when: false
 
     # --- Git commit/push ---
-    - name: Debug playbook_dir and list
-      shell: |
-        echo "playbook_dir={{ playbook_dir }}"
-        pwd
-        ls -la "{{ playbook_dir }}" | head -n 200 || true
-        find "{{ playbook_dir }}" -maxdepth 3 -type d -name ".git" -print || true
-      args:
-        executable: /bin/bash
-      changed_when: false
+    #- name: Debug playbook_dir and list
+     # shell: |
+      #  echo "playbook_dir={{ playbook_dir }}"
+      #  pwd
+       # ls -la "{{ playbook_dir }}" | head -n 200 || true
+        #find "{{ playbook_dir }}" -maxdepth 3 -type d -name ".git" -print || true
+      #args:
+       # executable: /bin/bash
+      #changed_when: false
 
     - name: Discover git repo root (nearest .git)
       shell: |
