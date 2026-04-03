@@ -1,5 +1,5 @@
 ---
-- name: Backup Huawei Firewall and push to Git
+- name: Backup Huawei Firewall to hostPath
   hosts: bj
   gather_facts: false
 
@@ -8,21 +8,32 @@
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
     keep_days: 30
 
-    repo_root: "{{ playbook_dir }}"                 # AWX checkout 目录，通常 /runner/project
-    backup_root: "backup"       # 写入pod内 backup/
-    git_user_name: "awx-backup-bot"
-    git_user_email: "awx-backup-bot@example.local"
+    # 这里必须与 AWX CR 中挂载到容器内的路径一致
+    # 宿主机: /data/backup
+    # 容器内: /backup
+    backup_root: "/backup"
+
+    # 生成的最终备份文件
+    backup_dir: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
+    backup_file: "{{ backup_dir }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
 
   tasks:
-    - name: Show repo root
+    - name: Show backup path
       debug:
         msg:
-          - "repo_root={{ repo_root }}"
           - "backup_root={{ backup_root }}"
+          - "backup_dir={{ backup_dir }}"
+          - "backup_file={{ backup_file }}"
 
-    - name: Ensure backup dir exists
+    - name: Ensure backup root exists
       file:
-        path: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
+        path: "{{ backup_root }}"
+        state: directory
+        mode: "0755"
+
+    - name: Ensure dated backup dir exists
+      file:
+        path: "{{ backup_dir }}"
         state: directory
         mode: "0755"
 
@@ -37,72 +48,54 @@
           - display current-configuration
       register: cfg
 
-    - name: Write cfg into repo
+    - name: Fail if config output is empty
+      fail:
+        msg: "Firewall configuration output is empty, backup aborted."
+      when:
+        - cfg is not defined
+        - cfg.stdout is not defined
+      ignore_errors: false
+
+    - name: Fail if first command output is empty
+      fail:
+        msg: "display current-configuration returned empty output, backup aborted."
+      when:
+        - cfg.stdout is defined
+        - (cfg.stdout | length) == 0 or (cfg.stdout[0] | string | trim | length) == 0
+
+    - name: Write cfg into hostPath
       copy:
         content: "{{ cfg.stdout[0] | string }}"
-        dest: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+        dest: "{{ backup_file }}"
         mode: "0644"
+
+    - name: Check backup file exists
+      stat:
+        path: "{{ backup_file }}"
+      register: backup_stat
+
+    - name: Fail if backup file missing
+      fail:
+        msg: "Backup file was not created: {{ backup_file }}"
+      when: not backup_stat.stat.exists
+
+    - name: Fail if backup file is empty
+      fail:
+        msg: "Backup file is empty: {{ backup_file }}"
+      when: (backup_stat.stat.size | int) == 0
 
     - name: Cleanup old backups (best effort)
       shell: |
         find "{{ backup_root }}/{{ inventory_hostname }}" -type f -name "*.cfg" -mtime +{{ keep_days }} -delete
+        find "{{ backup_root }}/{{ inventory_hostname }}" -type d -empty -delete
       args:
         executable: /bin/bash
       changed_when: false
       failed_when: false
 
-    # --- Git commit/push ---
-    #- name: Debug playbook_dir and list
-     # shell: |
-      #  echo "playbook_dir={{ playbook_dir }}"
-      #  pwd
-       # ls -la "{{ playbook_dir }}" | head -n 200 || true
-        #find "{{ playbook_dir }}" -maxdepth 3 -type d -name ".git" -print || true
-      #args:
-       # executable: /bin/bash
-      #changed_when: false
-
-    - name: Discover git repo root (nearest .git)
-      shell: |
-        set -e
-        d="{{ playbook_dir }}"
-        # 向上找 5 层（够用）
-        for i in 0 1 2 3 4 5; do
-          if [ -d "$d/.git" ]; then
-            echo "$d"
-            exit 0
-          fi
-          d="$(dirname "$d")"
-        done
-        # 向下找 3 层（有时 playbook 在子目录）
-        f="$(find "{{ playbook_dir }}" -maxdepth 3 -type d -name .git | head -n 1 || true)"
-        if [ -n "$f" ]; then
-          dirname "$f"
-          exit 0
-        fi
-        echo "NO_GIT_REPO_FOUND"
-        exit 0
-      args:
-        executable: /bin/bash
-      register: repo_root_detect
-      changed_when: false
-
-    - name: Fail if not a git repo (show hint)
-      fail:
-        msg: >
-          Cannot find a git repo (.git) around playbook_dir={{ playbook_dir }}.
-          Ensure AWX Project is SCM-based and synced successfully.
-      when: repo_root_detect.stdout == "NO_GIT_REPO_FOUND"
-
-    - name: Set repo_root fact
-      set_fact:
-        repo_root: "{{ repo_root_detect.stdout }}"
-
-    - name: Configure git identity (local repo)
-      shell: |
-        git config user.name "awx-backup-bot"
-        git config user.email "awx-backup-bot@example.local"
-      args:
-        chdir: "{{ repo_root }}"
-        executable: /bin/bash
-      changed_when: false
+    - name: Show saved result
+      debug:
+        msg:
+          - "Backup completed successfully."
+          - "saved_file={{ backup_file }}"
+          - "file_size={{ backup_stat.stat.size }} bytes"
