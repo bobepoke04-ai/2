@@ -8,12 +8,7 @@
     timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
     keep_days: 30
 
-    # 这里必须与 AWX CR 中挂载到容器内的路径一致
-    # 宿主机: /data/backup
-    # 容器内: /backup
     backup_root: "/backup"
-
-    # 生成的最终备份文件
     backup_dir: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
     backup_file: "{{ backup_dir }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
 
@@ -24,12 +19,6 @@
           - "backup_root={{ backup_root }}"
           - "backup_dir={{ backup_dir }}"
           - "backup_file={{ backup_file }}"
-
-    - name: Ensure backup root exists
-      file:
-        path: "{{ backup_root }}"
-        state: directory
-        mode: "0755"
 
     - name: Ensure dated backup dir exists
       file:
@@ -48,20 +37,10 @@
           - display current-configuration
       register: cfg
 
-    - name: Fail if config output is empty
-      fail:
-        msg: "Firewall configuration output is empty, backup aborted."
-      when:
-        - cfg is not defined
-        - cfg.stdout is not defined
-      ignore_errors: false
-
-    - name: Fail if first command output is empty
+    - name: Fail if config output missing
       fail:
         msg: "display current-configuration returned empty output, backup aborted."
-      when:
-        - cfg.stdout is defined
-        - (cfg.stdout | length) == 0 or (cfg.stdout[0] | string | trim | length) == 0
+      when: cfg.stdout is not defined or (cfg.stdout | length) == 0 or (cfg.stdout[0] | string | trim | length) == 0
 
     - name: Write cfg into hostPath
       copy:
