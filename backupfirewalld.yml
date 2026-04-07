@@ -42,7 +42,7 @@
           -p {{ ansible_port | default(22) }} \
           {{ ansible_user }}@{{ ansible_host | default(inventory_hostname) }} \
           "screen-length 0 temporary
-display current-configuration" > "{{ backup_file }}"
+          display current-configuration" > "{{ backup_file }}"
       args:
         executable: /bin/bash
       delegate_to: localhost
