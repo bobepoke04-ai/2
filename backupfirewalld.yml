@@ -1,10 +1,10 @@
 ---
-- name: Backup Huawei firewall configuration to /backup safely
+- name: Backup Huawei firewall config into AWX projects volume
   hosts: bj
   gather_facts: false
 
   vars:
-    backup_root: "/backup"
+    backup_root: "/var/lib/awx/projects/firewall_backups"
     backup_date: "{{ lookup('pipe', 'date +%Y%m%d') }}"
     backup_time: "{{ lookup('pipe', 'date +%H%M%S') }}"
     device_name: "{{ inventory_hostname }}"
@@ -13,33 +13,6 @@
     latest_file: "{{ backup_root }}/{{ device_name }}/latest.cfg"
 
   tasks:
-    - name: Debug localhost runtime identity
-      shell: |
-        echo "===== whoami ====="
-        whoami || true
-        echo "===== id ====="
-        id || true
-        echo "===== pwd ====="
-        pwd || true
-        echo "===== ls -ld /backup ====="
-        ls -ld /backup || true
-        echo "===== mount | grep backup ====="
-        mount | grep backup || true
-        echo "===== touch test ====="
-        touch /backup/awx_job_write_test.txt || true
-        echo "===== ls -l /backup ====="
-        ls -l /backup || true
-      args:
-        executable: /bin/bash
-      delegate_to: localhost
-      register: localhost_debug
-      changed_when: false
-      ignore_errors: true
-
-    - name: Show localhost debug result
-      debug:
-        var: localhost_debug.stdout_lines
-
     - name: Run display current-configuration on Huawei firewall
       ansible.netcommon.cli_command:
         command: display current-configuration
@@ -84,7 +57,7 @@
             | regex_replace('[\u0000-\u0008\u000B\u000C\u000E-\u001F]', '')
           }}
 
-    - name: Ensure backup directories exist
+    - name: Ensure backup directories exist in AWX projects volume
       shell: |
         mkdir -p "{{ backup_root }}/{{ device_name }}"
         mkdir -p "{{ backup_dir }}"
@@ -93,7 +66,7 @@
       delegate_to: localhost
       changed_when: true
 
-    - name: Write sanitized config safely to backup file
+    - name: Write sanitized config safely to projects backup file
       shell: |
         python3 - <<'PY'
         import os
@@ -115,23 +88,23 @@
       register: write_result
       changed_when: true
 
-    - name: Check backup file status
+    - name: Check projects backup file status
       stat:
         path: "{{ backup_file }}"
       delegate_to: localhost
       register: backup_file_stat
 
-    - name: Fail if backup file was not created
+    - name: Fail if projects backup file was not created
       fail:
-        msg: "备份文件未创建成功：{{ backup_file }}"
+        msg: "项目卷备份文件未创建成功：{{ backup_file }}"
       when: not backup_file_stat.stat.exists
 
-    - name: Fail if backup file is empty
+    - name: Fail if projects backup file is empty
       fail:
-        msg: "备份文件为空：{{ backup_file }}"
+        msg: "项目卷备份文件为空：{{ backup_file }}"
       when: backup_file_stat.stat.size | int == 0
 
-    - name: Update latest backup file
+    - name: Update latest backup file in projects volume
       shell: |
         cp -f "{{ backup_file }}" "{{ latest_file }}"
       args:
@@ -139,11 +112,95 @@
       delegate_to: localhost
       changed_when: true
 
-    - name: Show backup result
+    - name: Publish backup metadata for next play
+      set_stats:
+        data:
+          sync_device_name: "{{ device_name }}"
+          sync_backup_date: "{{ backup_date }}"
+          sync_backup_time: "{{ backup_time }}"
+          sync_backup_root: "{{ backup_root }}"
+          sync_backup_dir: "{{ backup_dir }}"
+          sync_backup_file: "{{ backup_file }}"
+          sync_latest_file: "{{ latest_file }}"
+        aggregate: false
+
+    - name: Show projects backup result
       debug:
         msg:
           - "设备: {{ inventory_hostname }}"
-          - "备份成功"
+          - "阶段1完成：已写入 AWX 项目卷"
+          - "项目卷目录: {{ backup_root }}"
           - "本次备份文件: {{ backup_file }}"
           - "最新备份文件: {{ latest_file }}"
           - "文件大小: {{ backup_file_stat.stat.size }} bytes"
+
+
+- name: Sync backup from AWX projects volume to host /data/backup through awx-demo-task pod
+  hosts: awx_k3s_host
+  gather_facts: false
+
+  vars:
+    awx_namespace: "awx"
+    awx_task_label: "app.kubernetes.io/name=awx-demo-task"
+
+    device_name: "{{ sync_device_name }}"
+    backup_date: "{{ sync_backup_date }}"
+    backup_time: "{{ sync_backup_time }}"
+
+    src_root: "/var/lib/awx/projects/firewall_backups"
+    src_backup_dir: "{{ src_root }}/{{ device_name }}/{{ backup_date }}"
+    src_backup_file: "{{ src_backup_dir }}/{{ device_name }}_config_{{ backup_date }}_{{ backup_time }}.cfg"
+    src_latest_file: "{{ src_root }}/{{ device_name }}/latest.cfg"
+
+    dst_root_in_task_pod: "/backup"
+    dst_backup_dir_in_task_pod: "{{ dst_root_in_task_pod }}/{{ device_name }}/{{ backup_date }}"
+    dst_backup_file_in_task_pod: "{{ dst_backup_dir_in_task_pod }}/{{ device_name }}_config_{{ backup_date }}_{{ backup_time }}.cfg"
+    dst_latest_file_in_task_pod: "{{ dst_root_in_task_pod }}/{{ device_name }}/latest.cfg"
+
+  tasks:
+    - name: Get current awx-demo-task pod name
+      shell: |
+        kubectl get pods -n "{{ awx_namespace }}" -l "{{ awx_task_label }}" -o jsonpath='{.items[0].metadata.name}'
+      args:
+        executable: /bin/bash
+      register: awx_task_pod_name
+      changed_when: false
+
+    - name: Fail if awx-demo-task pod not found
+      fail:
+        msg: "未找到 awx-demo-task Pod，请检查 AWX 命名空间或标签"
+      when: awx_task_pod_name.stdout | trim == ""
+
+    - name: Ensure source backup file exists in awx-demo-task pod
+      shell: |
+        kubectl exec -n "{{ awx_namespace }}" "{{ awx_task_pod_name.stdout | trim }}" -- \
+        /bin/bash -lc 'test -f "{{ src_backup_file }}"'
+      args:
+        executable: /bin/bash
+      register: check_src_backup_file
+      changed_when: false
+
+    - name: Copy backup file from projects volume to /backup in awx-demo-task pod
+      shell: |
+        kubectl exec -n "{{ awx_namespace }}" "{{ awx_task_pod_name.stdout | trim }}" -- \
+        /bin/bash -lc '
+        mkdir -p "{{ dst_root_in_task_pod }}/{{ device_name }}" &&
+        mkdir -p "{{ dst_backup_dir_in_task_pod }}" &&
+        cp -f "{{ src_backup_file }}" "{{ dst_backup_file_in_task_pod }}" &&
+        cp -f "{{ src_latest_file }}" "{{ dst_latest_file_in_task_pod }}" &&
+        ls -l "{{ dst_backup_file_in_task_pod }}" "{{ dst_latest_file_in_task_pod }}"
+        '
+      args:
+        executable: /bin/bash
+      register: sync_to_host_result
+      changed_when: true
+
+    - name: Show sync result
+      debug:
+        msg:
+          - "阶段2完成：已通过 awx-demo-task Pod 同步到宿主机挂载目录"
+          - "awx-demo-task Pod: {{ awx_task_pod_name.stdout | trim }}"
+          - "容器内目标目录: {{ dst_root_in_task_pod }}"
+          - "宿主机实际目录: /data/backup"
+          - "本次同步文件: {{ dst_backup_file_in_task_pod }}"
+          - "最新文件: {{ dst_latest_file_in_task_pod }}"
