@@ -3,7 +3,7 @@
   hosts: bj
   gather_facts: false
   vars:
-    backup_root: "/backups/firewall"
+    backup_root: "/backup"
     backup_date: "{{ lookup('pipe', 'date +%Y%m%d') }}"
     backup_time: "{{ lookup('pipe', 'date +%H%M%S') }}"
     device_name: "{{ inventory_hostname }}"
