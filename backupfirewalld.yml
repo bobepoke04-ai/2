@@ -1,12 +1,158 @@
 ---
-- name: test bj network auth
+- name: Collect Huawei firewall config and pass to next play
   hosts: bj
   gather_facts: false
-  tasks:
-    - name: test command
-      ansible.netcommon.cli_command:
-        command: display clock
-      register: r
 
-    - debug:
-        var: r.stdout
+  vars:
+    backup_date: "{{ lookup('pipe', 'date +%Y%m%d') }}"
+    backup_time: "{{ lookup('pipe', 'date +%H%M%S') }}"
+    device_name: "{{ inventory_hostname }}"
+
+  tasks:
+    - name: Run display current-configuration on Huawei firewall
+      ansible.netcommon.cli_command:
+        command: display current-configuration
+      register: config_output
+
+    - name: Ensure config output exists
+      fail:
+        msg: "设备 {{ inventory_hostname }} 未返回配置输出"
+      when:
+        - config_output is not defined or config_output.stdout is not defined
+
+    - name: Convert config output to plain string
+      set_fact:
+        raw_config_text: >-
+          {{
+            (
+              config_output.stdout
+              if config_output.stdout is string
+              else (config_output.stdout | join('\n'))
+            ) | string
+          }}
+
+    - name: Fail if config text is blank
+      fail:
+        msg: "设备 {{ inventory_hostname }} 返回的配置内容为空"
+      when: raw_config_text | trim == ""
+
+    - name: Normalize configuration text
+      set_fact:
+        normalized_config: >-
+          {{
+            raw_config_text
+            | regex_replace('\r\n', '\n')
+            | regex_replace('\r', '\n')
+          }}
+
+    - name: Remove unsafe control characters
+      set_fact:
+        sanitized_config: >-
+          {{
+            normalized_config
+            | regex_replace('[\u0000-\u0008\u000B\u000C\u000E-\u001F]', '')
+          }}
+
+    - name: Publish backup data for next play
+      set_stats:
+        data:
+          sync_device_name: "{{ device_name }}"
+          sync_backup_date: "{{ backup_date }}"
+          sync_backup_time: "{{ backup_time }}"
+          sync_backup_content_b64: "{{ sanitized_config | b64encode }}"
+        aggregate: false
+
+    - name: Show stage 1 result
+      debug:
+        msg:
+          - "阶段1完成：已从设备 {{ inventory_hostname }} 提取配置"
+          - "备份日期: {{ backup_date }}"
+          - "备份时间: {{ backup_time }}"
+          - "内容长度: {{ sanitized_config | length }}"
+
+
+- name: Write backup directly to host /data/backup
+  hosts: awx_k3s_host
+  gather_facts: false
+
+  vars:
+    device_name: "{{ sync_device_name }}"
+    backup_date: "{{ sync_backup_date }}"
+    backup_time: "{{ sync_backup_time }}"
+    backup_root: "/data/backup"
+    backup_dir: "{{ backup_root }}/{{ device_name }}/{{ backup_date }}"
+    backup_file: "{{ backup_dir }}/{{ device_name }}_config_{{ backup_date }}_{{ backup_time }}.cfg"
+    latest_file: "{{ backup_root }}/{{ device_name }}/latest.cfg"
+    backup_content_b64: "{{ sync_backup_content_b64 }}"
+
+  tasks:
+    - name: Ensure host backup directories exist
+      shell: |
+        mkdir -p "{{ backup_root }}/{{ device_name }}"
+        mkdir -p "{{ backup_dir }}"
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Write backup file safely on host
+      shell: |
+        python3 - <<'PY'
+        import os
+        import base64
+
+        dest = r'''{{ backup_file }}'''
+        latest = r'''{{ latest_file }}'''
+        content_b64 = r'''{{ backup_content_b64 }}'''
+
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+
+        raw = base64.b64decode(content_b64.encode("utf-8"))
+        text = raw.decode("utf-8", errors="ignore")
+
+        with open(dest, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+
+        with open(latest, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+
+        print(dest)
+        print(latest)
+        PY
+      args:
+        executable: /bin/bash
+      register: write_result
+      changed_when: true
+
+    - name: Check backup file status
+      stat:
+        path: "{{ backup_file }}"
+      register: backup_file_stat
+
+    - name: Fail if backup file was not created
+      fail:
+        msg: "宿主机备份文件未创建成功：{{ backup_file }}"
+      when: not backup_file_stat.stat.exists
+
+    - name: Fail if backup file is empty
+      fail:
+        msg: "宿主机备份文件为空：{{ backup_file }}"
+      when: backup_file_stat.stat.size | int == 0
+
+    - name: Check latest file status
+      stat:
+        path: "{{ latest_file }}"
+      register: latest_file_stat
+
+    - name: Fail if latest file was not created
+      fail:
+        msg: "宿主机 latest.cfg 未创建成功：{{ latest_file }}"
+      when: not latest_file_stat.stat.exists
+
+    - name: Show final result
+      debug:
+        msg:
+          - "阶段2完成：已直接写入宿主机 /data/backup"
+          - "宿主机目录: {{ backup_root }}"
+          - "本次备份文件: {{ backup_file }}"
+          - "最新备份文件: {{ latest_file }}"
+          - "文件大小: {{ backup_file_stat.stat.size }} bytes"
