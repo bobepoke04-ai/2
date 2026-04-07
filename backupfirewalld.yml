@@ -14,6 +14,8 @@
       ansible.netcommon.cli_command:
         command: display current-configuration
       register: config_output
+      vars:
+        ansible_command_timeout: "{{ hostvars[inventory_hostname].ansible_command_timeout | default(180) }}"
 
     - name: Ensure config output exists
       fail:
@@ -74,12 +76,15 @@
   vars:
     backup_root: "/data/backup"
     report_dir: "/data/backup/reports"
-    report_ts: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
-    report_file: "{{ report_dir }}/firewall_backup_report_{{ report_ts }}.md"
-    latest_report_file: "{{ report_dir }}/latest_firewall_backup_report.md"
     firewall_hosts: "{{ groups['firewalld'] | default([]) }}"
 
   tasks:
+    - name: Set stable report metadata
+      set_fact:
+        report_ts: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
+        report_file: "/data/backup/reports/firewall_backup_report_{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}.md"
+        latest_report_file: "/data/backup/reports/latest_firewall_backup_report.md"
+
     - name: Show firewall host list
       debug:
         var: firewall_hosts
@@ -162,6 +167,7 @@
       lineinfile:
         path: "{{ report_file }}"
         insertafter: EOF
+        create: false
         line: >-
           | {{ hostvars[item].device_name | default(item) }}
           | {{ hostvars[item].ansible_host | default('-') }}
