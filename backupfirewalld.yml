@@ -1,5 +1,5 @@
 ---
-- name: Backup Huawei Firewall directly to hostPath
+- name: Backup Huawei Firewall to hostPath
   hosts: bj
   gather_facts: false
 
@@ -20,10 +20,10 @@
           - "backup_dir={{ backup_dir }}"
           - "backup_file={{ backup_file }}"
           - "ansible_host={{ ansible_host | default(inventory_hostname) }}"
-          - "ansible_user={{ ansible_user }}"
+          - "ansible_user={{ ansible_user | default('undefined') }}"
           - "ansible_port={{ ansible_port | default(22) }}"
 
-    - name: Create backup directory on localhost
+    - name: Ensure backup dir exists on localhost
       shell: |
         mkdir -p "{{ backup_dir }}"
         chmod 775 "{{ backup_root }}" "{{ backup_root }}/{{ inventory_hostname }}" "{{ backup_dir }}" || true
@@ -32,21 +32,31 @@
       delegate_to: localhost
       changed_when: false
 
-    - name: Backup firewall config directly by sshpass
+    - name: Disable terminal paging
+      ansible.netcommon.cli_command:
+        command: screen-length 0 temporary
+      ignore_errors: true
+
+    - name: Get firewall configuration
+      ansible.netcommon.cli_command:
+        command: display current-configuration
+      register: cfg
+
+    - name: Fail if config output is empty
+      fail:
+        msg: "display current-configuration returned empty output, backup aborted."
+      when:
+        - cfg.stdout is not defined or (cfg.stdout | string | trim | length) == 0
+
+    - name: Write config to backup file on localhost
       shell: |
-        sshpass -p '{{ ansible_password }}' ssh -tt \
-        -o StrictHostKeyChecking=no \
-        -o UserKnownHostsFile=/dev/null \
-        -o PreferredAuthentications=password,keyboard-interactive \
-        -o PubkeyAuthentication=no \
-        -p {{ ansible_port | default(22) }} \
-           {{ ansible_user }}@{{ ansible_host | default(inventory_hostname) }} \
-        'screen-length 0 temporary
-        display current-configuration' > "{{ backup_file }}"
+        cat > "{{ backup_file }}" <<'EOF'
+        {{ cfg.stdout | string }}
+        EOF
+        chmod 0644 "{{ backup_file }}"
       args:
-       executable: /bin/bash
+        executable: /bin/bash
       delegate_to: localhost
-      register: backup_cmd
 
     - name: Check backup file exists
       stat:
@@ -63,7 +73,6 @@
       fail:
         msg: "Backup file is empty: {{ backup_file }}"
       when: (backup_stat.stat.size | int) == 0
-      delegate_to: localhost
 
     - name: Cleanup old backups
       shell: |
