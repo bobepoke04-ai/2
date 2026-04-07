@@ -13,6 +13,33 @@
     latest_file: "{{ backup_root }}/{{ device_name }}/latest.cfg"
 
   tasks:
+    - name: Debug localhost runtime identity
+      shell: |
+        echo "===== whoami ====="
+        whoami || true
+        echo "===== id ====="
+        id || true
+        echo "===== pwd ====="
+        pwd || true
+        echo "===== ls -ld /backup ====="
+        ls -ld /backup || true
+        echo "===== mount | grep backup ====="
+        mount | grep backup || true
+        echo "===== touch test ====="
+        touch /backup/awx_job_write_test.txt || true
+        echo "===== ls -l /backup ====="
+        ls -l /backup || true
+      args:
+        executable: /bin/bash
+      delegate_to: localhost
+      register: localhost_debug
+      changed_when: false
+      ignore_errors: true
+
+    - name: Show localhost debug result
+      debug:
+        var: localhost_debug.stdout_lines
+
     - name: Run display current-configuration on Huawei firewall
       ansible.netcommon.cli_command:
         command: display current-configuration
