@@ -46,17 +46,32 @@
       fail:
         msg: "display current-configuration returned empty output, backup aborted."
       when:
-        - cfg.stdout is not defined or (cfg.stdout | string | trim | length) == 0
+        - cfg.stdout is not defined
+        - false
+      # 占位，真正判空见下一个任务
 
-    - name: Write config to backup file on localhost
-      shell: |
-        cat > "{{ backup_file }}" <<'EOF'
-        {{ cfg.stdout | string }}
-        EOF
-        chmod 0644 "{{ backup_file }}"
-      args:
-        executable: /bin/bash
+    - name: Fail if config output is empty (real check)
+      fail:
+        msg: "display current-configuration returned empty output, backup aborted."
+      when: (cfg.stdout | default('') | string | trim | length) == 0
+
+    - name: Sanitize config text for invalid unicode
+      set_fact:
+        cfg_text_clean: >-
+          {{
+            cfg.stdout
+            | string
+            | regex_replace('[\ud800-\udfff]', '')
+          }}
+      no_log: true
+
+    - name: Write sanitized config to backup file on localhost
+      copy:
+        content: "{{ cfg_text_clean }}"
+        dest: "{{ backup_file }}"
+        mode: "0644"
       delegate_to: localhost
+      no_log: true
 
     - name: Check backup file exists
       stat:
