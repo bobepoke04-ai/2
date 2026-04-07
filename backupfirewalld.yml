@@ -20,15 +20,6 @@
           - "backup_dir={{ backup_dir }}"
           - "backup_file={{ backup_file }}"
 
-    - name: Ensure dated backup dir exists on localhost
-      shell: |
-        mkdir -p "{{ backup_dir }}"
-        chmod 775 "{{ backup_root }}" "{{ backup_root }}/{{ inventory_hostname }}" "{{ backup_dir }}" || true
-      args:
-        executable: /bin/bash
-      delegate_to: localhost
-      changed_when: false
-
     - name: Disable terminal paging (best effort)
       ansible.netcommon.cli_command:
         command: screen-length 0 temporary
@@ -45,11 +36,15 @@
         msg: "display current-configuration returned empty output, backup aborted."
       when: cfg.stdout is not defined or (cfg.stdout | length) == 0 or (cfg.stdout[0] | string | trim | length) == 0
 
-    - name: Write cfg into hostPath on localhost
-      copy:
-        content: "{{ cfg.stdout[0] | string }}"
-        dest: "{{ backup_file }}"
-        mode: "0644"
+    - name: Create dir and write config in one step on localhost
+      shell: |
+        mkdir -p "{{ backup_dir }}"
+        cat > "{{ backup_file }}" <<'EOF'
+{{ cfg.stdout[0] | string }}
+EOF
+        chmod 0644 "{{ backup_file }}"
+      args:
+        executable: /bin/bash
       delegate_to: localhost
 
     - name: Check backup file exists on localhost
