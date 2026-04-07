@@ -1,5 +1,5 @@
 ---
-- name: Collect Huawei firewall config and pass to next play
+- name: Collect Huawei firewall config
   hosts: bj
   gather_facts: false
 
@@ -53,15 +53,6 @@
             | regex_replace('[\u0000-\u0008\u000B\u000C\u000E-\u001F]', '')
           }}
 
-    - name: Publish backup data for next play
-      set_stats:
-        data:
-          sync_device_name: "{{ device_name }}"
-          sync_backup_date: "{{ backup_date }}"
-          sync_backup_time: "{{ backup_time }}"
-          sync_backup_content_b64: "{{ sanitized_config | b64encode }}"
-        aggregate: false
-
     - name: Show stage 1 result
       debug:
         msg:
@@ -72,18 +63,19 @@
 
 
 - name: Write backup directly to host /data/backup
-  hosts: awx_k3s_host
+  hosts: pp
   gather_facts: false
 
   vars:
-    device_name: "{{ sync_device_name }}"
-    backup_date: "{{ sync_backup_date }}"
-    backup_time: "{{ sync_backup_time }}"
+    source_host: "bj"
+    device_name: "{{ hostvars[source_host]['device_name'] }}"
+    backup_date: "{{ hostvars[source_host]['backup_date'] }}"
+    backup_time: "{{ hostvars[source_host]['backup_time'] }}"
     backup_root: "/data/backup"
     backup_dir: "{{ backup_root }}/{{ device_name }}/{{ backup_date }}"
     backup_file: "{{ backup_dir }}/{{ device_name }}_config_{{ backup_date }}_{{ backup_time }}.cfg"
     latest_file: "{{ backup_root }}/{{ device_name }}/latest.cfg"
-    backup_content_b64: "{{ sync_backup_content_b64 }}"
+    backup_content_b64: "{{ hostvars[source_host]['sanitized_config'] | b64encode }}"
 
   tasks:
     - name: Ensure host backup directories exist
