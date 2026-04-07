@@ -50,12 +50,12 @@
       delegate_to: localhost
       register: backup_cmd
 
-- name: Show backup command result
-  debug:
-    msg:
-      - "rc={{ backup_cmd.rc }}"
-      - "stdout={{ backup_cmd.stdout }}"
-      - "stderr={{ backup_cmd.stderr }}"
+   - name: Show backup command result
+     debug:
+       msg:
+         - "rc={{ backup_cmd.rc }}"
+         - "stdout={{ backup_cmd.stdout }}"
+         - "stderr={{ backup_cmd.stderr }}"
 
     - name: Check backup file exists
       stat:
