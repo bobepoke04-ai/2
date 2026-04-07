@@ -1,107 +1,103 @@
 ---
-- name: Backup Huawei Firewall to hostPath
+- name: Backup Huawei firewall configuration to localhost safely
   hosts: bj
   gather_facts: false
-
   vars:
-    today: "{{ lookup('pipe', 'date +%F') }}"
-    timestamp: "{{ lookup('pipe', 'date +%F_%H%M%S') }}"
-    keep_days: 30
-
-    backup_root: "/backup"
-    backup_dir: "{{ backup_root }}/{{ inventory_hostname }}/{{ today }}"
-    backup_file: "{{ backup_dir }}/{{ inventory_hostname }}_{{ timestamp }}.cfg"
+    backup_root: "/backups/firewall"
+    backup_date: "{{ lookup('pipe', 'date +%Y%m%d') }}"
+    backup_time: "{{ lookup('pipe', 'date +%H%M%S') }}"
+    device_name: "{{ inventory_hostname }}"
+    backup_dir: "{{ backup_root }}/{{ device_name }}/{{ backup_date }}"
+    backup_file: "{{ backup_dir }}/{{ device_name }}_config_{{ backup_date }}_{{ backup_time }}.cfg"
 
   tasks:
-    - name: Show backup path
-      debug:
-        msg:
-          - "backup_root={{ backup_root }}"
-          - "backup_dir={{ backup_dir }}"
-          - "backup_file={{ backup_file }}"
-          - "ansible_host={{ ansible_host | default(inventory_hostname) }}"
-          - "ansible_user={{ ansible_user | default('undefined') }}"
-          - "ansible_port={{ ansible_port | default(22) }}"
-
-    - name: Ensure backup dir exists on localhost
-      shell: |
-        mkdir -p "{{ backup_dir }}"
-        chmod 775 "{{ backup_root }}" "{{ backup_root }}/{{ inventory_hostname }}" "{{ backup_dir }}" || true
-      args:
-        executable: /bin/bash
-      delegate_to: localhost
-      changed_when: false
-
-    - name: Disable terminal paging
-      ansible.netcommon.cli_command:
-        command: screen-length 0 temporary
-      ignore_errors: true
-
-    - name: Get firewall configuration
+    - name: Run display current-configuration on Huawei firewall
       ansible.netcommon.cli_command:
         command: display current-configuration
-      register: cfg
+      register: config_output
 
     - name: Fail if config output is empty
       fail:
-        msg: "display current-configuration returned empty output, backup aborted."
+        msg: "Device {{ inventory_hostname }} returned empty config output"
       when:
-        - cfg.stdout is not defined
-        - false
-      # 占位，真正判空见下一个任务
+        - config_output is not defined
+        - config_output.stdout is not defined
+      ignore_errors: false
 
-    - name: Fail if config output is empty (real check)
-      fail:
-        msg: "display current-configuration returned empty output, backup aborted."
-      when: (cfg.stdout | default('') | string | trim | length) == 0
-
-    - name: Sanitize config text for invalid unicode
+    - name: Convert config output to plain string
       set_fact:
-        cfg_text_clean: >-
+        raw_config_text: "{{ (config_output.stdout | default('')) | string }}"
+
+    - name: Fail if config text is blank
+      fail:
+        msg: "Device {{ inventory_hostname }} returned blank configuration text"
+      when: raw_config_text | trim == ""
+
+    - name: Normalize configuration text
+      set_fact:
+        normalized_config: >-
           {{
-            cfg.stdout
-            | string
-            | regex_replace('[\ud800-\udfff]', '')
+            raw_config_text
+            | regex_replace('\r\n', '\n')
+            | regex_replace('\r', '\n')
           }}
-      no_log: true
 
-    - name: Write sanitized config to backup file on localhost
-      copy:
-        content: "{{ cfg_text_clean }}"
-        dest: "{{ backup_file }}"
-        mode: "0644"
+    - name: Remove unsafe control characters
+      set_fact:
+        sanitized_config: >-
+          {{
+            normalized_config
+            | regex_replace('[\u0000-\u0008\u000B\u000C\u000E-\u001F]', '')
+          }}
+
+    - name: Ensure local backup directory exists
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: "0755"
       delegate_to: localhost
-      no_log: true
 
-    - name: Check backup file exists
+    - name: Write sanitized config safely to local backup file
+      shell: |
+        python3 - <<'PY'
+        import os
+
+        dest = r'''{{ backup_file }}'''
+        content = r'''{{ sanitized_config | replace("'''", "'\"'\"'") }}'''
+
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+
+        safe = content.encode('utf-8', errors='ignore').decode('utf-8', errors='ignore')
+
+        with open(dest, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(safe)
+        print(dest)
+        PY
+      args:
+        executable: /bin/bash
+      delegate_to: localhost
+      register: write_result
+      changed_when: true
+
+    - name: Check backup file status
       stat:
         path: "{{ backup_file }}"
-      register: backup_stat
       delegate_to: localhost
+      register: backup_file_stat
 
-    - name: Fail if backup file missing
+    - name: Fail if backup file was not created
       fail:
         msg: "Backup file was not created: {{ backup_file }}"
-      when: not backup_stat.stat.exists
+      when: not backup_file_stat.stat.exists
 
     - name: Fail if backup file is empty
       fail:
         msg: "Backup file is empty: {{ backup_file }}"
-      when: (backup_stat.stat.size | int) == 0
+      when: backup_file_stat.stat.size | int == 0
 
-    - name: Cleanup old backups
-      shell: |
-        find "{{ backup_root }}/{{ inventory_hostname }}" -type f -name "*.cfg" -mtime +{{ keep_days }} -delete
-        find "{{ backup_root }}/{{ inventory_hostname }}" -type d -empty -delete
-      args:
-        executable: /bin/bash
-      delegate_to: localhost
-      changed_when: false
-      failed_when: false
-
-    - name: Show saved result
+    - name: Show backup result
       debug:
         msg:
-          - "Backup completed successfully."
-          - "saved_file={{ backup_file }}"
-          - "file_size={{ backup_stat.stat.size }} bytes"
+          - "Backup success for {{ inventory_hostname }}"
+          - "Backup file: {{ backup_file }}"
+          - "Backup size: {{ backup_file_stat.stat.size }} bytes"
