@@ -3,12 +3,13 @@
   hosts: bj
   gather_facts: false
 
-  vars:
-    backup_date: "{{ lookup('pipe', 'date +%Y%m%d') }}"
-    backup_time: "{{ lookup('pipe', 'date +%H%M%S') }}"
-    device_name: "{{ inventory_hostname }}"
-
   tasks:
+    - name: Set backup metadata
+      set_fact:
+        device_name: "{{ inventory_hostname }}"
+        backup_date: "{{ lookup('pipe', 'date +%Y%m%d') }}"
+        backup_time: "{{ lookup('pipe', 'date +%H%M%S') }}"
+
     - name: Run display current-configuration on Huawei firewall
       ansible.netcommon.cli_command:
         command: display current-configuration
@@ -56,7 +57,7 @@
     - name: Show stage 1 result
       debug:
         msg:
-          - "阶段1完成：已从设备 {{ inventory_hostname }} 提取配置"
+          - "阶段1完成：已从设备 {{ device_name }} 提取配置"
           - "备份日期: {{ backup_date }}"
           - "备份时间: {{ backup_time }}"
           - "内容长度: {{ sanitized_config | length }}"
@@ -68,14 +69,14 @@
 
   vars:
     source_host: "bj"
-    device_name: "{{ hostvars[source_host]['device_name'] }}"
-    backup_date: "{{ hostvars[source_host]['backup_date'] }}"
-    backup_time: "{{ hostvars[source_host]['backup_time'] }}"
+    device_name: "{{ hostvars[source_host].device_name }}"
+    backup_date: "{{ hostvars[source_host].backup_date }}"
+    backup_time: "{{ hostvars[source_host].backup_time }}"
+    backup_content_b64: "{{ hostvars[source_host].sanitized_config | b64encode }}"
     backup_root: "/data/backup"
     backup_dir: "{{ backup_root }}/{{ device_name }}/{{ backup_date }}"
     backup_file: "{{ backup_dir }}/{{ device_name }}_config_{{ backup_date }}_{{ backup_time }}.cfg"
     latest_file: "{{ backup_root }}/{{ device_name }}/latest.cfg"
-    backup_content_b64: "{{ hostvars[source_host]['sanitized_config'] | b64encode }}"
 
   tasks:
     - name: Ensure host backup directories exist
