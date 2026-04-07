@@ -34,19 +34,28 @@
 
     - name: Backup firewall config directly by sshpass
       shell: |
+        set -o pipefail
+        mkdir -p "{{ backup_dir }}"
         sshpass -p '{{ ansible_password }}' ssh -tt \
-          -o StrictHostKeyChecking=no \
-          -o UserKnownHostsFile=/dev/null \
-          -o PreferredAuthentications=password,keyboard-interactive \
-          -o PubkeyAuthentication=no \
-          -p {{ ansible_port | default(22) }} \
-          {{ ansible_user }}@{{ ansible_host | default(inventory_hostname) }} \
-          "screen-length 0 temporary
-          display current-configuration" > "{{ backup_file }}"
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        -o PreferredAuthentications=password,keyboard-interactive \
+        -o PubkeyAuthentication=no \
+        -p {{ ansible_port | default(22) }} \
+           {{ ansible_user }}@{{ ansible_host | default(inventory_hostname) }} \
+        'screen-length 0 temporary
+        display current-configuration' > "{{ backup_file }}"
       args:
-        executable: /bin/bash
+      executable: /bin/bash
       delegate_to: localhost
-      no_log: true
+      register: backup_cmd
+
+- name: Show backup command result
+  debug:
+    msg:
+      - "rc={{ backup_cmd.rc }}"
+      - "stdout={{ backup_cmd.stdout }}"
+      - "stderr={{ backup_cmd.stderr }}"
 
     - name: Check backup file exists
       stat:
