@@ -2,6 +2,7 @@
 - name: Collect Huawei firewall configs
   hosts: firewalld
   gather_facts: false
+  serial: 1
 
   tasks:
     - name: Set backup metadata
