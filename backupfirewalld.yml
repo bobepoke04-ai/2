@@ -74,11 +74,16 @@
   vars:
     backup_root: "/data/backup"
     report_dir: "/data/backup/reports"
-    report_file: "{{ report_dir }}/firewall_backup_report_{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}.md"
+    report_ts: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
+    report_file: "{{ report_dir }}/firewall_backup_report_{{ report_ts }}.md"
     latest_report_file: "{{ report_dir }}/latest_firewall_backup_report.md"
-    firewall_hosts: "{{ groups['firewalls'] | default([]) }}"
+    firewall_hosts: "{{ groups['firewalld'] | default([]) }}"
 
   tasks:
+    - name: Show firewall host list
+      debug:
+        var: firewall_hosts
+
     - name: Ensure report directory exists
       shell: |
         mkdir -p "{{ report_dir }}"
@@ -93,6 +98,7 @@
         executable: /bin/bash
       loop: "{{ firewall_hosts }}"
       changed_when: true
+      when: firewall_hosts | length > 0
 
     - name: Write backup files for all successful firewalls
       shell: |
@@ -100,16 +106,15 @@
         import os
         import base64
 
-        host = r'''{{ item }}'''
         device_name = r'''{{ hostvars[item].device_name | default(item) }}'''
         backup_date = r'''{{ hostvars[item].backup_date | default("") }}'''
         backup_time = r'''{{ hostvars[item].backup_time | default("") }}'''
         content_b64 = r'''{{ (hostvars[item].sanitized_config | default("")) | b64encode }}'''
+        backup_root = r'''{{ backup_root }}'''
 
         if not backup_date or not backup_time or not content_b64:
             raise SystemExit(0)
 
-        backup_root = r'''{{ backup_root }}'''
         backup_dir = os.path.join(backup_root, device_name, backup_date)
         backup_file = os.path.join(
             backup_dir,
@@ -136,63 +141,41 @@
       loop: "{{ firewall_hosts }}"
       register: write_results
       changed_when: true
+      when:
+        - firewall_hosts | length > 0
+        - hostvars[item].sanitized_config is defined
 
-    - name: Build backup report markdown
-      shell: |
-        python3 - <<'PY'
-        import os
-        from datetime import datetime
+    - name: Initialize report file
+      copy:
+        dest: "{{ report_file }}"
+        content: |
+          # 防火墙配置备份报告
 
-        report_file = r'''{{ report_file }}'''
-        latest_report_file = r'''{{ latest_report_file }}'''
-        backup_root = r'''{{ backup_root }}'''
+          - 生成时间: {{ lookup('pipe', 'date "+%Y-%m-%d %H:%M:%S"') }}
+          - 备份根目录: {{ backup_root }}
 
-        hosts = {{ firewall_hosts | to_json }}
+          | 设备名称 | 管理IP | 备份状态 | 备份文件 | latest.cfg |
+          |---|---|---|---|---|
+      changed_when: true
 
-        lines = []
-        lines.append("# 防火墙配置备份报告")
-        lines.append("")
-        lines.append(f"- 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        lines.append(f"- 备份根目录: {backup_root}")
-        lines.append("")
-        lines.append("| 设备名称 | 管理IP | 备份状态 | 备份文件 | latest.cfg |")
-        lines.append("|---|---|---|---|---|")
+    - name: Append report rows
+      lineinfile:
+        path: "{{ report_file }}"
+        insertafter: EOF
+        line: >-
+          | {{ hostvars[item].device_name | default(item) }}
+          | {{ hostvars[item].ansible_host | default('-') }}
+          | {{ '成功' if (hostvars[item].sanitized_config is defined) else '失败' }}
+          | {{ (backup_root ~ '/' ~ (hostvars[item].device_name | default(item)) ~ '/' ~ (hostvars[item].backup_date | default('-')) ~ '/' ~ (hostvars[item].device_name | default(item)) ~ '_config_' ~ (hostvars[item].backup_date | default('-')) ~ '_' ~ (hostvars[item].backup_time | default('-')) ~ '.cfg') if (hostvars[item].sanitized_config is defined) else '-' }}
+          | {{ (backup_root ~ '/' ~ (hostvars[item].device_name | default(item)) ~ '/latest.cfg') if (hostvars[item].sanitized_config is defined) else '-' }} |
+      loop: "{{ firewall_hosts }}"
+      when: firewall_hosts | length > 0
 
-        for host in hosts:
-            hv = {{ hostvars | to_json }}.get(host, {})
-            device_name = hv.get("device_name", host)
-            ip = hv.get("ansible_host", "")
-            backup_date = hv.get("backup_date", "")
-            backup_time = hv.get("backup_time", "")
-            ok = hv.get("backup_collect_success", False)
-
-            if ok and backup_date and backup_time:
-                backup_file = f"{backup_root}/{device_name}/{backup_date}/{device_name}_config_{backup_date}_{backup_time}.cfg"
-                latest_file = f"{backup_root}/{device_name}/latest.cfg"
-                status = "成功"
-            else:
-                backup_file = "-"
-                latest_file = "-"
-                status = "失败"
-
-            lines.append(f"| {device_name} | {ip} | {status} | {backup_file} | {latest_file} |")
-
-        content = "\n".join(lines) + "\n"
-
-        os.makedirs(os.path.dirname(report_file), exist_ok=True)
-
-        with open(report_file, "w", encoding="utf-8") as f:
-            f.write(content)
-
-        with open(latest_report_file, "w", encoding="utf-8") as f:
-            f.write(content)
-
-        print(report_file)
-        print(latest_report_file)
-        PY
-      args:
-        executable: /bin/bash
-      register: report_result
+    - name: Update latest report file
+      copy:
+        src: "{{ report_file }}"
+        dest: "{{ latest_report_file }}"
+        remote_src: true
       changed_when: true
 
     - name: Show final result
