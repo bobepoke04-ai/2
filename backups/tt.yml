@@ -1,0 +1,12 @@
+---
+- name: test bj network auth
+  hosts: bj
+  gather_facts: false
+  tasks:
+    - name: test command
+      ansible.netcommon.cli_command:
+        command: display clock
+      register: r
+
+    - debug:
+        var: r.stdout
