@@ -1,12 +1,18 @@
 ---
-- name: Backup Huawei firewall configuration to localhost safely
+- name: Backup Huawei firewall configuration to /backup safely
   hosts: bj
   gather_facts: false
+
   vars:
+    # 注意：
+    # /backup 是 AWX 任务容器内路径
+    # 实际映射到宿主机 Ubuntu 的 /data/backup
     backup_root: "/backup"
+
     backup_date: "{{ lookup('pipe', 'date +%Y%m%d') }}"
     backup_time: "{{ lookup('pipe', 'date +%H%M%S') }}"
     device_name: "{{ inventory_hostname }}"
+
     backup_dir: "{{ backup_root }}/{{ device_name }}/{{ backup_date }}"
     backup_file: "{{ backup_dir }}/{{ device_name }}_config_{{ backup_date }}_{{ backup_time }}.cfg"
     latest_file: "{{ backup_root }}/{{ device_name }}/latest.cfg"
@@ -19,19 +25,27 @@
 
     - name: Ensure config output exists
       fail:
-        msg: "Device {{ inventory_hostname }} returned no configuration output"
-      when: config_output.stdout is not defined
+        msg: "设备 {{ inventory_hostname }} 未返回配置输出"
+      when:
+        - config_output is not defined or config_output.stdout is not defined
 
     - name: Convert config output to plain string
       set_fact:
-        raw_config_text: "{{ (config_output.stdout | default('')) | string }}"
+        raw_config_text: >-
+          {{
+            (
+              config_output.stdout
+              if config_output.stdout is string
+              else (config_output.stdout | join('\n'))
+            ) | string
+          }}
 
     - name: Fail if config text is blank
       fail:
-        msg: "Device {{ inventory_hostname }} returned blank configuration text"
+        msg: "设备 {{ inventory_hostname }} 返回的配置内容为空"
       when: raw_config_text | trim == ""
 
-    - name: Normalize configuration text
+    - name: Normalize configuration text line endings
       set_fact:
         normalized_config: >-
           {{
@@ -48,21 +62,21 @@
             | regex_replace('[\u0000-\u0008\u000B\u000C\u000E-\u001F]', '')
           }}
 
-    - name: Ensure local backup directory exists
-      file:
-        path: "{{ backup_dir }}"
-        state: directory
-        mode: "0755"
-      delegate_to: localhost
-
-    - name: Ensure local latest directory exists
+    - name: Ensure device backup base directory exists
       file:
         path: "{{ backup_root }}/{{ device_name }}"
         state: directory
-        mode: "0755"
+        mode: "0775"
       delegate_to: localhost
 
-    - name: Write sanitized config safely to local backup file
+    - name: Ensure dated backup directory exists
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: "0775"
+      delegate_to: localhost
+
+    - name: Write sanitized config safely to backup file
       shell: |
         python3 - <<'PY'
         import os
@@ -92,12 +106,12 @@
 
     - name: Fail if backup file was not created
       fail:
-        msg: "Backup file was not created: {{ backup_file }}"
+        msg: "备份文件未创建成功：{{ backup_file }}"
       when: not backup_file_stat.stat.exists
 
     - name: Fail if backup file is empty
       fail:
-        msg: "Backup file is empty: {{ backup_file }}"
+        msg: "备份文件为空：{{ backup_file }}"
       when: backup_file_stat.stat.size | int == 0
 
     - name: Update latest backup file
@@ -108,10 +122,23 @@
       delegate_to: localhost
       changed_when: true
 
+    - name: Check latest file status
+      stat:
+        path: "{{ latest_file }}"
+      delegate_to: localhost
+      register: latest_file_stat
+
+    - name: Fail if latest file was not updated
+      fail:
+        msg: "latest.cfg 更新失败：{{ latest_file }}"
+      when: not latest_file_stat.stat.exists
+
     - name: Show backup result
       debug:
         msg:
-          - "Backup success for {{ inventory_hostname }}"
-          - "Backup file: {{ backup_file }}"
-          - "Latest file: {{ latest_file }}"
-          - "Backup size: {{ backup_file_stat.stat.size }} bytes"
+          - "设备: {{ inventory_hostname }}"
+          - "备份成功"
+          - "容器内备份目录: {{ backup_root }}"
+          - "本次备份文件: {{ backup_file }}"
+          - "最新备份文件: {{ latest_file }}"
+          - "文件大小: {{ backup_file_stat.stat.size }} bytes"
