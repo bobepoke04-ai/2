@@ -1,6 +1,6 @@
 ---
 - name: Collect Huawei firewall config
-  hosts: bj
+  hosts: firewalld
   gather_facts: false
 
   tasks:
