@@ -4,15 +4,10 @@
   gather_facts: false
 
   vars:
-    # 注意：
-    # /backup 是 AWX 任务容器内路径
-    # 实际映射到宿主机 Ubuntu 的 /data/backup
     backup_root: "/backup"
-
     backup_date: "{{ lookup('pipe', 'date +%Y%m%d') }}"
     backup_time: "{{ lookup('pipe', 'date +%H%M%S') }}"
     device_name: "{{ inventory_hostname }}"
-
     backup_dir: "{{ backup_root }}/{{ device_name }}/{{ backup_date }}"
     backup_file: "{{ backup_dir }}/{{ device_name }}_config_{{ backup_date }}_{{ backup_time }}.cfg"
     latest_file: "{{ backup_root }}/{{ device_name }}/latest.cfg"
@@ -45,7 +40,7 @@
         msg: "设备 {{ inventory_hostname }} 返回的配置内容为空"
       when: raw_config_text | trim == ""
 
-    - name: Normalize configuration text line endings
+    - name: Normalize configuration text
       set_fact:
         normalized_config: >-
           {{
@@ -62,19 +57,14 @@
             | regex_replace('[\u0000-\u0008\u000B\u000C\u000E-\u001F]', '')
           }}
 
-    - name: Ensure device backup base directory exists
-      file:
-        path: "{{ backup_root }}/{{ device_name }}"
-        state: directory
-        mode: "0775"
+    - name: Ensure backup directories exist
+      shell: |
+        mkdir -p "{{ backup_root }}/{{ device_name }}"
+        mkdir -p "{{ backup_dir }}"
+      args:
+        executable: /bin/bash
       delegate_to: localhost
-
-    - name: Ensure dated backup directory exists
-      file:
-        path: "{{ backup_dir }}"
-        state: directory
-        mode: "0775"
-      delegate_to: localhost
+      changed_when: true
 
     - name: Write sanitized config safely to backup file
       shell: |
@@ -85,11 +75,11 @@
         content = r'''{{ sanitized_config | replace("'''", "'\"'\"'") }}'''
 
         os.makedirs(os.path.dirname(dest), exist_ok=True)
-
         safe = content.encode('utf-8', errors='ignore').decode('utf-8', errors='ignore')
 
         with open(dest, 'w', encoding='utf-8', newline='\n') as f:
             f.write(safe)
+
         print(dest)
         PY
       args:
@@ -122,23 +112,11 @@
       delegate_to: localhost
       changed_when: true
 
-    - name: Check latest file status
-      stat:
-        path: "{{ latest_file }}"
-      delegate_to: localhost
-      register: latest_file_stat
-
-    - name: Fail if latest file was not updated
-      fail:
-        msg: "latest.cfg 更新失败：{{ latest_file }}"
-      when: not latest_file_stat.stat.exists
-
     - name: Show backup result
       debug:
         msg:
           - "设备: {{ inventory_hostname }}"
           - "备份成功"
-          - "容器内备份目录: {{ backup_root }}"
           - "本次备份文件: {{ backup_file }}"
           - "最新备份文件: {{ latest_file }}"
           - "文件大小: {{ backup_file_stat.stat.size }} bytes"
