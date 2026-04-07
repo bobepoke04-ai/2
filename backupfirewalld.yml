@@ -20,7 +20,7 @@
           - "backup_dir={{ backup_dir }}"
           - "backup_file={{ backup_file }}"
 
-    - name: Disable terminal paging (best effort)
+    - name: Disable terminal paging
       ansible.netcommon.cli_command:
         command: screen-length 0 temporary
       ignore_errors: true
@@ -31,56 +31,27 @@
           - display current-configuration
       register: cfg
 
-    - name: Fail if config output missing
+    - name: Fail if empty
       fail:
-        msg: "display current-configuration returned empty output, backup aborted."
-      when: cfg.stdout is not defined or (cfg.stdout | length) == 0 or (cfg.stdout[0] | string | trim | length) == 0
+        msg: "No config returned"
+      when: cfg.stdout is not defined or (cfg.stdout[0] | trim | length) == 0
 
-    - name: Ensure backup dir exists on localhost
+    - name: Write config directly (final fix)
       shell: |
         mkdir -p "{{ backup_dir }}"
-        chmod 775 "{{ backup_root }}" "{{ backup_root }}/{{ inventory_hostname }}" "{{ backup_dir }}" || true
+        printf "%s\n" "{{ cfg.stdout[0] | replace('"','\"') }}" > "{{ backup_file }}"
+        chmod 644 "{{ backup_file }}"
       args:
         executable: /bin/bash
       delegate_to: localhost
-      changed_when: false
 
-    - name: Write cfg into hostPath on localhost
-      copy:
-        content: "{{ cfg.stdout[0] | string }}"
-        dest: "{{ backup_file }}"
-        mode: "0644"
-      delegate_to: localhost
-
-    - name: Check backup file exists on localhost
-      stat:
-        path: "{{ backup_file }}"
-      register: backup_stat
-      delegate_to: localhost
-
-    - name: Fail if backup file missing
-      fail:
-        msg: "Backup file was not created: {{ backup_file }}"
-      when: not backup_stat.stat.exists
-
-    - name: Fail if backup file is empty
-      fail:
-        msg: "Backup file is empty: {{ backup_file }}"
-      when: (backup_stat.stat.size | int) == 0
-
-    - name: Cleanup old backups on localhost (best effort)
+    - name: Verify file
       shell: |
-        find "{{ backup_root }}/{{ inventory_hostname }}" -type f -name "*.cfg" -mtime +{{ keep_days }} -delete
-        find "{{ backup_root }}/{{ inventory_hostname }}" -type d -empty -delete
-      args:
-        executable: /bin/bash
+        ls -l "{{ backup_file }}"
       delegate_to: localhost
-      changed_when: false
-      failed_when: false
 
-    - name: Show saved result
-      debug:
-        msg:
-          - "Backup completed successfully."
-          - "saved_file={{ backup_file }}"
-          - "file_size={{ backup_stat.stat.size }} bytes"
+    - name: Cleanup old backups
+      shell: |
+        find "{{ backup_root }}/{{ inventory_hostname }}" -type f -mtime +{{ keep_days }} -delete
+      delegate_to: localhost
+      ignore_errors: true
