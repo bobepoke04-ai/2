@@ -46,7 +46,7 @@
         'screen-length 0 temporary
         display current-configuration' > "{{ backup_file }}"
       args:
-      executable: /bin/bash
+       xecutable: /bin/bash
       delegate_to: localhost
       register: backup_cmd
 
