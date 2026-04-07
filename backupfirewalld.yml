@@ -34,24 +34,47 @@
     - name: Fail if empty
       fail:
         msg: "No config returned"
-      when: cfg.stdout is not defined or (cfg.stdout[0] | trim | length) == 0
+      when: cfg.stdout is not defined or (cfg.stdout | length) == 0 or (cfg.stdout[0] | string | trim | length) == 0
 
-    - name: Write config directly (final fix)
+    - name: Create dir and write config on localhost
       shell: |
         mkdir -p "{{ backup_dir }}"
-        printf "%s\n" "{{ cfg.stdout[0] | replace('"','\"') }}" > "{{ backup_file }}"
-        chmod 644 "{{ backup_file }}"
+        cat > "{{ backup_file }}"
+        chmod 0644 "{{ backup_file }}"
       args:
         executable: /bin/bash
+        stdin: "{{ cfg.stdout[0] | string }}"
       delegate_to: localhost
 
     - name: Verify file
-      shell: |
-        ls -l "{{ backup_file }}"
+      stat:
+        path: "{{ backup_file }}"
+      register: backup_stat
       delegate_to: localhost
+
+    - name: Fail if file missing
+      fail:
+        msg: "Backup file was not created: {{ backup_file }}"
+      when: not backup_stat.stat.exists
+
+    - name: Fail if file empty
+      fail:
+        msg: "Backup file is empty: {{ backup_file }}"
+      when: (backup_stat.stat.size | int) == 0
 
     - name: Cleanup old backups
       shell: |
-        find "{{ backup_root }}/{{ inventory_hostname }}" -type f -mtime +{{ keep_days }} -delete
+        find "{{ backup_root }}/{{ inventory_hostname }}" -type f -name "*.cfg" -mtime +{{ keep_days }} -delete
+        find "{{ backup_root }}/{{ inventory_hostname }}" -type d -empty -delete
+      args:
+        executable: /bin/bash
       delegate_to: localhost
-      ignore_errors: true
+      changed_when: false
+      failed_when: false
+
+    - name: Show saved result
+      debug:
+        msg:
+          - "Backup completed successfully."
+          - "saved_file={{ backup_file }}"
+          - "file_size={{ backup_stat.stat.size }} bytes"
