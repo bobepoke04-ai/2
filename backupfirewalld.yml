@@ -69,7 +69,6 @@
           - "备份时间: {{ backup_time }}"
           - "内容长度: {{ sanitized_config | length }}"
 
-
 - name: Write configs to host /data/backup and build report
   hosts: pp
   gather_facts: false
