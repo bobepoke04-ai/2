@@ -1,0 +1,918 @@
+四节点 Ping 触发器防尖峰：只读核对与修改预览
+========================================================================================
+生成：2026-10-13T17:18:09+08:00 | 工具 2.0.0 | Zabbix 7.0.19
+API：http://192.168.253.106:9000/api_jsonrpc.php
+监控项：48/48；截图预期关联数合计：75（不是未经核对的唯一触发器数）
+API 关联数合计：75；去重 triggerid：75
+连续 2 次达到原阈值 + 最近 2 分钟至少 2 条记录；固定 1m 时首末采样约跨 1 分钟。
+不是逐秒连续性证明。保留邮件动作；100%丢包等简单阈值也增加确认时间。
+已有长观察范围不自动缩短；已有自定义恢复条件保留；None/复杂条件需人工复核。
+计划中的 SHA-256 仅用于发现意外改动，不是对来源真实性的数字签名。
+
+A. 48 个监控项逐项定位（主机名+完整键值 -> itemid -> 所有关联 triggerid）
+----------------------------------------------------------------------------------------
+[01/48] MATCH | XA-69 | 西安到北京内网延迟
+  hostid=10769 | key=ping.public.rtt.avg[192.168.1.134]
+  itemid=80349 | triggerids=38227,39364
+  预期/实际关联数=2/2
+  master_itemid=80272 | master=ping.metrics[192.168.1.134] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[02/48] MATCH | XA-69 | 西安到北京内网丢包率
+  hostid=10769 | key=ping.public.loss[192.168.1.134]
+  itemid=80352 | triggerids=38232,39363
+  预期/实际关联数=2/2
+  master_itemid=80272 | master=ping.metrics[192.168.1.134] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[03/48] MATCH | XA-69 | 西安到北京公网延迟
+  hostid=10769 | key=ping.public.rtt.avg[103.118.54.42]
+  itemid=80259 | triggerids=38222,39362
+  预期/实际关联数=2/2
+  master_itemid=79649 | master=ping.metrics[103.118.54.42] | delay=60s
+  依赖项 JSONPath=$.rtt_avg_ms
+[04/48] MATCH | XA-69 | 西安到北京公网丢包率
+  hostid=10769 | key=ping.public.loss[103.118.54.42]
+  itemid=80355 | triggerids=38225,39361
+  预期/实际关联数=2/2
+  master_itemid=79649 | master=ping.metrics[103.118.54.42] | delay=60s
+  依赖项 JSONPath=$.loss_pct
+[05/48] MATCH | XA-69 | 西安到上海内网延迟
+  hostid=10769 | key=ping.public.rtt.avg[192.168.5.162]
+  itemid=80384 | triggerids=38228,39371
+  预期/实际关联数=2/2
+  master_itemid=80271 | master=ping.metrics[192.168.5.162] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[06/48] MATCH | XA-69 | 西安到上海内网丢包率
+  hostid=10769 | key=ping.public.loss[192.168.5.162]
+  itemid=80394 | triggerids=38231,39370
+  预期/实际关联数=2/2
+  master_itemid=80271 | master=ping.metrics[192.168.5.162] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[07/48] MATCH | XA-69 | 西安到上海公网延迟
+  hostid=10769 | key=ping.public.rtt.avg[61.169.185.146]
+  itemid=80383 | triggerids=38223,39369
+  预期/实际关联数=2/2
+  master_itemid=80382 | master=ping.metrics[61.169.185.146] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[08/48] MATCH | XA-69 | 西安到上海公网丢包率
+  hostid=10769 | key=ping.public.loss[61.169.185.146]
+  itemid=80395 | triggerids=38226,39368
+  预期/实际关联数=2/2
+  master_itemid=80382 | master=ping.metrics[61.169.185.146] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[09/48] MATCH | XA-69 | 西安到IDC内网延迟
+  hostid=10769 | key=ping.public.rtt.avg[192.168.253.106]
+  itemid=80350 | triggerids=38229,39367
+  预期/实际关联数=2/2
+  master_itemid=80351 | master=ping.metrics[192.168.253.106] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[10/48] MATCH | XA-69 | 西安到IDC内网丢包率
+  hostid=10769 | key=ping.public.loss[192.168.253.106]
+  itemid=80353 | triggerids=38230,39366
+  预期/实际关联数=2/2
+  master_itemid=80351 | master=ping.metrics[192.168.253.106] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[11/48] MATCH | XA-69 | 西安到IDC公网延迟
+  hostid=10769 | key=ping.public.rtt.avg[1.81.5.164]
+  itemid=80258 | triggerids=38221,39372
+  预期/实际关联数=2/2
+  master_itemid=79648 | master=ping.metrics[1.81.5.164] | delay=60s
+  依赖项 JSONPath=$.rtt_avg_ms
+[12/48] MATCH | XA-69 | 西安到IDC公网丢包率
+  hostid=10769 | key=ping.public.loss[1.81.5.164]
+  itemid=80354 | triggerids=38224,39365
+  预期/实际关联数=2/2
+  master_itemid=79648 | master=ping.metrics[1.81.5.164] | delay=60s
+  依赖项 JSONPath=$.loss_pct
+[13/48] MATCH | SH-162 | 上海到西安内网延迟
+  hostid=10827 | key=ping.public.rtt.avg[192.168.2.69]
+  itemid=80400 | triggerids=38250,39384
+  预期/实际关联数=2/2
+  master_itemid=80397 | master=ping.metrics[192.168.2.69] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[14/48] MATCH | SH-162 | 上海到西安内网丢包率
+  hostid=10827 | key=ping.public.loss[192.168.2.69]
+  itemid=80399 | triggerids=38256,39383
+  预期/实际关联数=2/2
+  master_itemid=80397 | master=ping.metrics[192.168.2.69] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[15/48] MATCH | SH-162 | 上海到西安公网延迟
+  hostid=10827 | key=ping.public.rtt.avg[219.144.175.254]
+  itemid=80401 | triggerids=38247,39381
+  预期/实际关联数=2/2
+  master_itemid=80396 | master=ping.metrics[219.144.175.254] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[16/48] MATCH | SH-162 | 上海到西安公网丢包率
+  hostid=10827 | key=ping.public.loss[219.144.175.254]
+  itemid=80398 | triggerids=38255,39382
+  预期/实际关联数=2/2
+  master_itemid=80396 | master=ping.metrics[219.144.175.254] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[17/48] MATCH | SH-162 | 上海到北京内网延迟
+  hostid=10827 | key=ping.public.rtt.avg[192.168.1.134]
+  itemid=79818 | triggerids=38248,39376
+  预期/实际关联数=2/2
+  master_itemid=79816 | master=ping.metrics[192.168.1.134] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[18/48] MATCH | SH-162 | 上海到北京内网丢包率
+  hostid=10827 | key=ping.public.loss[192.168.1.134]
+  itemid=80020 | triggerids=38252,39375
+  预期/实际关联数=2/2
+  master_itemid=79816 | master=ping.metrics[192.168.1.134] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[19/48] MATCH | SH-162 | 上海到北京公网延迟
+  hostid=10827 | key=ping.public.rtt.avg[103.118.54.42]
+  itemid=79817 | triggerids=38246,39374
+  预期/实际关联数=2/2
+  master_itemid=79815 | master=ping.metrics[103.118.54.42] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[20/48] MATCH | SH-162 | 上海到北京公网丢包率
+  hostid=10827 | key=ping.public.loss[103.118.54.42]
+  itemid=80021 | triggerids=38251,39373
+  预期/实际关联数=2/2
+  master_itemid=79815 | master=ping.metrics[103.118.54.42] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[21/48] MATCH | SH-162 | 上海到IDC内网延迟
+  hostid=10827 | key=ping.public.rtt.avg[192.168.253.106]
+  itemid=79808 | triggerids=38249,39380
+  预期/实际关联数=2/2
+  master_itemid=79807 | master=ping.metrics[192.168.253.106] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[22/48] MATCH | SH-162 | 上海到IDC内网丢包率
+  hostid=10827 | key=ping.public.loss[192.168.253.106]
+  itemid=79819 | triggerids=38254,39379
+  预期/实际关联数=2/2
+  master_itemid=79807 | master=ping.metrics[192.168.253.106] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[23/48] MATCH | SH-162 | 上海到IDC公网延迟
+  hostid=10827 | key=ping.public.rtt.avg[1.81.5.164]
+  itemid=79806 | triggerids=38245,39378
+  预期/实际关联数=2/2
+  master_itemid=79804 | master=ping.metrics[1.81.5.164] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[24/48] MATCH | SH-162 | 上海到IDC公网丢包率
+  hostid=10827 | key=ping.public.loss[1.81.5.164]
+  itemid=79805 | triggerids=38253,39377
+  预期/实际关联数=2/2
+  master_itemid=79804 | master=ping.metrics[1.81.5.164] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[25/48] MATCH | Zabbix server | IDC到西安内网延迟
+  hostid=10084 | key=ping.public.rtt.avg[192.168.2.69]
+  itemid=80359 | triggerids=38238
+  预期/实际关联数=1/1
+  master_itemid=80358 | master=ping.metrics[192.168.2.69] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[26/48] MATCH | Zabbix server | IDC到西安内网丢包率
+  hostid=10084 | key=ping.public.loss[192.168.2.69]
+  itemid=80361 | triggerids=38244
+  预期/实际关联数=1/1
+  master_itemid=80358 | master=ping.metrics[192.168.2.69] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[27/48] MATCH | Zabbix server | IDC到西安公网延迟
+  hostid=10084 | key=ping.public.rtt.avg[219.144.175.254]
+  itemid=80357 | triggerids=38235
+  预期/实际关联数=1/1
+  master_itemid=80356 | master=ping.metrics[219.144.175.254] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[28/48] MATCH | Zabbix server | IDC到西安公网丢包率
+  hostid=10084 | key=ping.public.loss[219.144.175.254]
+  itemid=80360 | triggerids=38243
+  预期/实际关联数=1/1
+  master_itemid=80356 | master=ping.metrics[219.144.175.254] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[29/48] MATCH | Zabbix server | IDC到北京内网延迟
+  hostid=10084 | key=ping.public.rtt.avg[192.168.1.134]
+  itemid=80007 | triggerids=38236
+  预期/实际关联数=1/1
+  master_itemid=80005 | master=ping.metrics[192.168.1.134] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[30/48] MATCH | Zabbix server | IDC到北京内网丢包率
+  hostid=10084 | key=ping.public.loss[192.168.1.134]
+  itemid=80009 | triggerids=38241
+  预期/实际关联数=1/1
+  master_itemid=80005 | master=ping.metrics[192.168.1.134] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[31/48] MATCH | Zabbix server | IDC到北京公网延迟
+  hostid=10084 | key=ping.public.rtt.avg[103.118.54.42]
+  itemid=80008 | triggerids=38233
+  预期/实际关联数=1/1
+  master_itemid=80006 | master=ping.metrics[103.118.54.42] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[32/48] MATCH | Zabbix server | IDC到北京公网丢包率
+  hostid=10084 | key=ping.public.loss[103.118.54.42]
+  itemid=80010 | triggerids=38239
+  预期/实际关联数=1/1
+  master_itemid=80006 | master=ping.metrics[103.118.54.42] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[33/48] MATCH | Zabbix server | IDC到上海内网延迟
+  hostid=10084 | key=ping.public.rtt.avg[192.168.5.162]
+  itemid=79813 | triggerids=38237
+  预期/实际关联数=1/1
+  master_itemid=79812 | master=ping.metrics[192.168.5.162] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[34/48] MATCH | Zabbix server | IDC到上海内网丢包率
+  hostid=10084 | key=ping.public.loss[192.168.5.162]
+  itemid=79814 | triggerids=38242
+  预期/实际关联数=1/1
+  master_itemid=79812 | master=ping.metrics[192.168.5.162] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[35/48] MATCH | Zabbix server | IDC到上海公网延迟
+  hostid=10084 | key=ping.public.rtt.avg[61.169.185.146]
+  itemid=79810 | triggerids=38234
+  预期/实际关联数=1/1
+  master_itemid=79809 | master=ping.metrics[61.169.185.146] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[36/48] MATCH | Zabbix server | IDC到上海公网丢包率
+  hostid=10084 | key=ping.public.loss[61.169.185.146]
+  itemid=79811 | triggerids=38240
+  预期/实际关联数=1/1
+  master_itemid=79809 | master=ping.metrics[61.169.185.146] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[37/48] MATCH | BJ-134 | 北京到西安内网延迟
+  hostid=10680 | key=ping.public.rtt.avg[192.168.2.69]
+  itemid=80366 | triggerids=33398
+  预期/实际关联数=1/1
+  master_itemid=80362 | master=ping.metrics[192.168.2.69] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[38/48] MATCH | BJ-134 | 北京到西安内网丢包率
+  hostid=10680 | key=ping.public.loss[192.168.2.69]
+  itemid=80363 | triggerids=38264
+  预期/实际关联数=1/1
+  master_itemid=80362 | master=ping.metrics[192.168.2.69] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[39/48] MATCH | BJ-134 | 北京到西安公网延迟
+  hostid=10680 | key=ping.public.rtt.avg[219.144.175.254]
+  itemid=80367 | triggerids=38258
+  预期/实际关联数=1/1
+  master_itemid=80364 | master=ping.metrics[219.144.175.254] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[40/48] MATCH | BJ-134 | 北京到西安公网丢包率
+  hostid=10680 | key=ping.public.loss[219.144.175.254]
+  itemid=80365 | triggerids=38263
+  预期/实际关联数=1/1
+  master_itemid=80364 | master=ping.metrics[219.144.175.254] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[41/48] MATCH | BJ-134 | 北京到上海内网延迟
+  hostid=10680 | key=ping.public.rtt.avg[192.168.5.162]
+  itemid=80017 | triggerids=32153
+  预期/实际关联数=1/1
+  master_itemid=80012 | master=ping.metrics[192.168.5.162] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[42/48] MATCH | BJ-134 | 北京到上海内网丢包率
+  hostid=10680 | key=ping.public.loss[192.168.5.162]
+  itemid=80015 | triggerids=38262
+  预期/实际关联数=1/1
+  master_itemid=80012 | master=ping.metrics[192.168.5.162] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[43/48] MATCH | BJ-134 | 北京到上海公网延迟
+  hostid=10680 | key=ping.public.rtt.avg[61.169.185.146]
+  itemid=80018 | triggerids=38257
+  预期/实际关联数=1/1
+  master_itemid=79651 | master=ping.metrics[61.169.185.146] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[44/48] MATCH | BJ-134 | 北京到上海公网丢包率
+  hostid=10680 | key=ping.public.loss[61.169.185.146]
+  itemid=80011 | triggerids=38261
+  预期/实际关联数=1/1
+  master_itemid=79651 | master=ping.metrics[61.169.185.146] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[45/48] MATCH | BJ-134 | 北京到IDC内网延迟
+  hostid=10680 | key=ping.public.rtt.avg[192.168.253.106]
+  itemid=80016 | triggerids=32148
+  预期/实际关联数=1/1
+  master_itemid=80013 | master=ping.metrics[192.168.253.106] | delay=1m
+  依赖项 JSONPath=$.rtt_avg_ms
+[46/48] MATCH | BJ-134 | 北京到IDC内网丢包率
+  hostid=10680 | key=ping.public.loss[192.168.253.106]
+  itemid=80014 | triggerids=38260,39389
+  预期/实际关联数=2/2
+  master_itemid=80013 | master=ping.metrics[192.168.253.106] | delay=1m
+  依赖项 JSONPath=$.loss_pct
+[47/48] MATCH | BJ-134 | 北京到IDC公网延迟
+  hostid=10680 | key=ping.public.rtt.avg[113.200.121.196]
+  itemid=80019 | triggerids=38214,39386
+  预期/实际关联数=2/2
+  master_itemid=79650 | master=ping.metrics[113.200.121.196] | delay=60s
+  依赖项 JSONPath=$.rtt_avg_ms
+[48/48] MATCH | BJ-134 | 北京到IDC公网丢包率
+  hostid=10680 | key=ping.public.loss[113.200.121.196]
+  itemid=79652 | triggerids=38259,39385
+  预期/实际关联数=2/2
+  master_itemid=79650 | master=ping.metrics[113.200.121.196] | delay=60s
+  依赖项 JSONPath=$.loss_pct
+
+B. 每一个去重后的触发器及新旧表达式
+----------------------------------------------------------------------------------------
+[CHANGE] BJ-134 | triggerid=32148 | itemids=80016
+  名称：bj-idc-内网延迟 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.rtt.avg[192.168.253.106],1m)>200
+  原恢复：mode=1 | avg(/BJ-134/ping.public.rtt.avg[192.168.253.106],1m)<100
+  新问题：count(/BJ-134/ping.public.rtt.avg[192.168.253.106],#2,"gt",200)=2 and count(/BJ-134/ping.public.rtt.avg[192.168.253.106],2m)>=2
+  新恢复：mode=1 | avg(/BJ-134/ping.public.rtt.avg[192.168.253.106],1m)<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=32153 | itemids=80017
+  名称：bj-sh-内网延迟 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.rtt.avg[192.168.5.162],1m)>200
+  原恢复：mode=1 | avg(/BJ-134/ping.public.rtt.avg[192.168.5.162],1m)<100
+  新问题：count(/BJ-134/ping.public.rtt.avg[192.168.5.162],#2,"gt",200)=2 and count(/BJ-134/ping.public.rtt.avg[192.168.5.162],2m)>=2
+  新恢复：mode=1 | avg(/BJ-134/ping.public.rtt.avg[192.168.5.162],1m)<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=33398 | itemids=80366
+  名称：bj-xa-内网延迟 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.rtt.avg[192.168.2.69],1m)>=200
+  原恢复：mode=1 | avg(/BJ-134/ping.public.rtt.avg[192.168.2.69],1m)<100
+  新问题：count(/BJ-134/ping.public.rtt.avg[192.168.2.69],#2,"ge",200)=2 and count(/BJ-134/ping.public.rtt.avg[192.168.2.69],2m)>=2
+  新恢复：mode=1 | avg(/BJ-134/ping.public.rtt.avg[192.168.2.69],1m)<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=38214 | itemids=80019
+  名称：bj-idc-公网延迟 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.rtt.avg[113.200.121.196],1m)>=200
+  原恢复：mode=1 | avg(/BJ-134/ping.public.rtt.avg[113.200.121.196],1m)<100
+  新问题：count(/BJ-134/ping.public.rtt.avg[113.200.121.196],#2,"ge",200)=2 and count(/BJ-134/ping.public.rtt.avg[113.200.121.196],2m)>=2
+  新恢复：mode=1 | avg(/BJ-134/ping.public.rtt.avg[113.200.121.196],1m)<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=38221 | itemids=80258
+  名称：XA-IDC公网延迟-100 | 当前：OK
+  原问题：avg(/XA-69/ping.public.rtt.avg[1.81.5.164],1m)>=100
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.rtt.avg[1.81.5.164],#2,"ge",100)=2 and count(/XA-69/ping.public.rtt.avg[1.81.5.164],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.rtt.avg[1.81.5.164])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=38222 | itemids=80259
+  名称：XA-BJ公网延迟 | 当前：OK
+  原问题：avg(/XA-69/ping.public.rtt.avg[103.118.54.42],1m)>=200
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.rtt.avg[103.118.54.42],#2,"ge",200)=2 and count(/XA-69/ping.public.rtt.avg[103.118.54.42],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.rtt.avg[103.118.54.42])<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[UNCHANGED] XA-69 | triggerid=38223 | itemids=80383
+  名称：XA-SH公网延迟 | 当前：OK
+  原问题：count(/XA-69/ping.public.rtt.avg[61.169.185.146],#2,"ge",200)=2
+and
+count(/XA-69/ping.public.rtt.avg[61.169.185.146],2m)>=2
+  原恢复：mode=1 | last(/XA-69/ping.public.rtt.avg[61.169.185.146])<100
+  新问题：count(/XA-69/ping.public.rtt.avg[61.169.185.146],#2,"ge",200)=2 and count(/XA-69/ping.public.rtt.avg[61.169.185.146],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.rtt.avg[61.169.185.146])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=38224 | itemids=80354
+  名称：XA-IDC公网丢包 | 当前：OK
+  原问题：avg(/XA-69/ping.public.loss[1.81.5.164],1m)>=80
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.loss[1.81.5.164],#2,"ge",80)=2 and count(/XA-69/ping.public.loss[1.81.5.164],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.loss[1.81.5.164])<80
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=38225 | itemids=80355
+  名称：XA-BJ公网丢包 | 当前：OK
+  原问题：avg(/XA-69/ping.public.loss[103.118.54.42],1m)>=80
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.loss[103.118.54.42],#2,"ge",80)=2 and count(/XA-69/ping.public.loss[103.118.54.42],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.loss[103.118.54.42])<80
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=38226 | itemids=80395
+  名称：XA-SH公网丢包 | 当前：OK
+  原问题：avg(/XA-69/ping.public.loss[61.169.185.146],1m)>=80
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.loss[61.169.185.146],#2,"ge",80)=2 and count(/XA-69/ping.public.loss[61.169.185.146],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.loss[61.169.185.146])<80
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=38227 | itemids=80349
+  名称：XA-BJ内网延迟 | 当前：OK
+  原问题：avg(/XA-69/ping.public.rtt.avg[192.168.1.134],1m)>=200
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.rtt.avg[192.168.1.134],#2,"ge",200)=2 and count(/XA-69/ping.public.rtt.avg[192.168.1.134],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.rtt.avg[192.168.1.134])<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=38228 | itemids=80384
+  名称：XA-SH内网延迟 | 当前：OK
+  原问题：avg(/XA-69/ping.public.rtt.avg[192.168.5.162],1m)>=200
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.rtt.avg[192.168.5.162],#2,"ge",200)=2 and count(/XA-69/ping.public.rtt.avg[192.168.5.162],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.rtt.avg[192.168.5.162])<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=38229 | itemids=80350
+  名称：XA-IDC内网延迟 | 当前：OK
+  原问题：avg(/XA-69/ping.public.rtt.avg[192.168.253.106],1m)>=200
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.rtt.avg[192.168.253.106],#2,"ge",200)=2 and count(/XA-69/ping.public.rtt.avg[192.168.253.106],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.rtt.avg[192.168.253.106])<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=38230 | itemids=80353
+  名称：XA-IDC内网丢包 | 当前：OK
+  原问题：avg(/XA-69/ping.public.loss[192.168.253.106],1m)>=80
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.loss[192.168.253.106],#2,"ge",80)=2 and count(/XA-69/ping.public.loss[192.168.253.106],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.loss[192.168.253.106])<80
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=38231 | itemids=80394
+  名称：XA-SH内网丢包 | 当前：OK
+  原问题：avg(/XA-69/ping.public.loss[192.168.5.162],1m)>=80
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.loss[192.168.5.162],#2,"ge",80)=2 and count(/XA-69/ping.public.loss[192.168.5.162],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.loss[192.168.5.162])<80
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=38232 | itemids=80352
+  名称：XA-BJ内网丢包 | 当前：OK
+  原问题：avg(/XA-69/ping.public.loss[192.168.1.134],1m)>=80
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.loss[192.168.1.134],#2,"ge",80)=2 and count(/XA-69/ping.public.loss[192.168.1.134],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.loss[192.168.1.134])<80
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] Zabbix server | triggerid=38233 | itemids=80008
+  名称：IDC-BJ公网延迟 | 当前：OK
+  原问题：avg(/Zabbix server/ping.public.rtt.avg[103.118.54.42],1m)>=200
+  原恢复：mode=0 | 
+  新问题：count(/Zabbix server/ping.public.rtt.avg[103.118.54.42],#2,"ge",200)=2 and count(/Zabbix server/ping.public.rtt.avg[103.118.54.42],2m)>=2
+  新恢复：mode=1 | last(/Zabbix server/ping.public.rtt.avg[103.118.54.42])<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] Zabbix server | triggerid=38234 | itemids=79810
+  名称：IDC-SH公网延迟 | 当前：OK
+  原问题：avg(/Zabbix server/ping.public.rtt.avg[61.169.185.146],1m)>=200
+  原恢复：mode=0 | 
+  新问题：count(/Zabbix server/ping.public.rtt.avg[61.169.185.146],#2,"ge",200)=2 and count(/Zabbix server/ping.public.rtt.avg[61.169.185.146],2m)>=2
+  新恢复：mode=1 | last(/Zabbix server/ping.public.rtt.avg[61.169.185.146])<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] Zabbix server | triggerid=38235 | itemids=80357
+  名称：IDC-XA公网延迟 | 当前：OK
+  原问题：avg(/Zabbix server/ping.public.rtt.avg[219.144.175.254],1m)>=200
+  原恢复：mode=0 | 
+  新问题：count(/Zabbix server/ping.public.rtt.avg[219.144.175.254],#2,"ge",200)=2 and count(/Zabbix server/ping.public.rtt.avg[219.144.175.254],2m)>=2
+  新恢复：mode=1 | last(/Zabbix server/ping.public.rtt.avg[219.144.175.254])<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] Zabbix server | triggerid=38236 | itemids=80007
+  名称：IDC-BJ内网延迟 | 当前：OK
+  原问题：avg(/Zabbix server/ping.public.rtt.avg[192.168.1.134],1m)>=200
+  原恢复：mode=0 | 
+  新问题：count(/Zabbix server/ping.public.rtt.avg[192.168.1.134],#2,"ge",200)=2 and count(/Zabbix server/ping.public.rtt.avg[192.168.1.134],2m)>=2
+  新恢复：mode=1 | last(/Zabbix server/ping.public.rtt.avg[192.168.1.134])<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] Zabbix server | triggerid=38237 | itemids=79813
+  名称：IDC-SH内网延迟 | 当前：OK
+  原问题：avg(/Zabbix server/ping.public.rtt.avg[192.168.5.162],1m)>=200
+  原恢复：mode=0 | 
+  新问题：count(/Zabbix server/ping.public.rtt.avg[192.168.5.162],#2,"ge",200)=2 and count(/Zabbix server/ping.public.rtt.avg[192.168.5.162],2m)>=2
+  新恢复：mode=1 | last(/Zabbix server/ping.public.rtt.avg[192.168.5.162])<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] Zabbix server | triggerid=38238 | itemids=80359
+  名称：IDC-XA内网延迟 | 当前：OK
+  原问题：avg(/Zabbix server/ping.public.rtt.avg[192.168.2.69],1m)>=200
+  原恢复：mode=0 | 
+  新问题：count(/Zabbix server/ping.public.rtt.avg[192.168.2.69],#2,"ge",200)=2 and count(/Zabbix server/ping.public.rtt.avg[192.168.2.69],2m)>=2
+  新恢复：mode=1 | last(/Zabbix server/ping.public.rtt.avg[192.168.2.69])<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] Zabbix server | triggerid=38239 | itemids=80010
+  名称：IDC-BJ公网丢包 | 当前：OK
+  原问题：avg(/Zabbix server/ping.public.loss[103.118.54.42],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/Zabbix server/ping.public.loss[103.118.54.42],#2,"ge",50)=2 and count(/Zabbix server/ping.public.loss[103.118.54.42],2m)>=2
+  新恢复：mode=1 | last(/Zabbix server/ping.public.loss[103.118.54.42])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] Zabbix server | triggerid=38240 | itemids=79811
+  名称：IDC-SH公网丢包 | 当前：OK
+  原问题：avg(/Zabbix server/ping.public.loss[61.169.185.146],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/Zabbix server/ping.public.loss[61.169.185.146],#2,"ge",50)=2 and count(/Zabbix server/ping.public.loss[61.169.185.146],2m)>=2
+  新恢复：mode=1 | last(/Zabbix server/ping.public.loss[61.169.185.146])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] Zabbix server | triggerid=38241 | itemids=80009
+  名称：IDC-BJ内网丢包 | 当前：OK
+  原问题：avg(/Zabbix server/ping.public.loss[192.168.1.134],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/Zabbix server/ping.public.loss[192.168.1.134],#2,"ge",50)=2 and count(/Zabbix server/ping.public.loss[192.168.1.134],2m)>=2
+  新恢复：mode=1 | last(/Zabbix server/ping.public.loss[192.168.1.134])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] Zabbix server | triggerid=38242 | itemids=79814
+  名称：IDC-SH内网丢包 | 当前：OK
+  原问题：avg(/Zabbix server/ping.public.loss[192.168.5.162],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/Zabbix server/ping.public.loss[192.168.5.162],#2,"ge",50)=2 and count(/Zabbix server/ping.public.loss[192.168.5.162],2m)>=2
+  新恢复：mode=1 | last(/Zabbix server/ping.public.loss[192.168.5.162])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] Zabbix server | triggerid=38243 | itemids=80360
+  名称：IDC-XA公网丢包 | 当前：OK
+  原问题：avg(/Zabbix server/ping.public.loss[219.144.175.254],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/Zabbix server/ping.public.loss[219.144.175.254],#2,"ge",50)=2 and count(/Zabbix server/ping.public.loss[219.144.175.254],2m)>=2
+  新恢复：mode=1 | last(/Zabbix server/ping.public.loss[219.144.175.254])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] Zabbix server | triggerid=38244 | itemids=80361
+  名称：IDC-XA内网丢包 | 当前：OK
+  原问题：avg(/Zabbix server/ping.public.loss[192.168.2.69],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/Zabbix server/ping.public.loss[192.168.2.69],#2,"ge",50)=2 and count(/Zabbix server/ping.public.loss[192.168.2.69],2m)>=2
+  新恢复：mode=1 | last(/Zabbix server/ping.public.loss[192.168.2.69])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=38245 | itemids=79806
+  名称：SH-IDC公网延迟 | 当前：OK
+  原问题：avg(/SH-162/ping.public.rtt.avg[1.81.5.164],1m)>=200
+  原恢复：mode=1 | avg(/SH-162/ping.public.rtt.avg[1.81.5.164],1m)<200
+  新问题：count(/SH-162/ping.public.rtt.avg[1.81.5.164],#2,"ge",200)=2 and count(/SH-162/ping.public.rtt.avg[1.81.5.164],2m)>=2
+  新恢复：mode=1 | avg(/SH-162/ping.public.rtt.avg[1.81.5.164],1m)<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=38246 | itemids=79817
+  名称：SH-BJ公网延迟 | 当前：OK
+  原问题：avg(/SH-162/ping.public.rtt.avg[103.118.54.42],1m)>=200
+  原恢复：mode=1 | avg(/SH-162/ping.public.rtt.avg[103.118.54.42],1m)<200
+  新问题：count(/SH-162/ping.public.rtt.avg[103.118.54.42],#2,"ge",200)=2 and count(/SH-162/ping.public.rtt.avg[103.118.54.42],2m)>=2
+  新恢复：mode=1 | avg(/SH-162/ping.public.rtt.avg[103.118.54.42],1m)<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=38247 | itemids=80401
+  名称：SH-XA公网延迟 | 当前：OK
+  原问题：avg(/SH-162/ping.public.rtt.avg[219.144.175.254],1m)>=200
+  原恢复：mode=1 | avg(/SH-162/ping.public.rtt.avg[219.144.175.254],1m)<200
+  新问题：count(/SH-162/ping.public.rtt.avg[219.144.175.254],#2,"ge",200)=2 and count(/SH-162/ping.public.rtt.avg[219.144.175.254],2m)>=2
+  新恢复：mode=1 | avg(/SH-162/ping.public.rtt.avg[219.144.175.254],1m)<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=38248 | itemids=79818
+  名称：SH-BJ内网延迟 | 当前：OK
+  原问题：avg(/SH-162/ping.public.rtt.avg[192.168.1.134],1m)>=200
+  原恢复：mode=1 | avg(/SH-162/ping.public.rtt.avg[192.168.1.134],1m)<200
+  新问题：count(/SH-162/ping.public.rtt.avg[192.168.1.134],#2,"ge",200)=2 and count(/SH-162/ping.public.rtt.avg[192.168.1.134],2m)>=2
+  新恢复：mode=1 | avg(/SH-162/ping.public.rtt.avg[192.168.1.134],1m)<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=38249 | itemids=79808
+  名称：SH-IDC内网延迟 | 当前：OK
+  原问题：avg(/SH-162/ping.public.rtt.avg[192.168.253.106],1m)>=200
+  原恢复：mode=1 | avg(/SH-162/ping.public.rtt.avg[192.168.253.106],1m)<200
+  新问题：count(/SH-162/ping.public.rtt.avg[192.168.253.106],#2,"ge",200)=2 and count(/SH-162/ping.public.rtt.avg[192.168.253.106],2m)>=2
+  新恢复：mode=1 | avg(/SH-162/ping.public.rtt.avg[192.168.253.106],1m)<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=38250 | itemids=80400
+  名称：SH-XA内网延迟 | 当前：OK
+  原问题：avg(/SH-162/ping.public.rtt.avg[192.168.2.69],1m)>=200
+  原恢复：mode=1 | avg(/SH-162/ping.public.rtt.avg[192.168.2.69],1m)<200
+  新问题：count(/SH-162/ping.public.rtt.avg[192.168.2.69],#2,"ge",200)=2 and count(/SH-162/ping.public.rtt.avg[192.168.2.69],2m)>=2
+  新恢复：mode=1 | avg(/SH-162/ping.public.rtt.avg[192.168.2.69],1m)<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=38251 | itemids=80021
+  名称：SH-BJ公网丢包 | 当前：OK
+  原问题：avg(/SH-162/ping.public.loss[103.118.54.42],1m)>=80
+  原恢复：mode=1 | avg(/SH-162/ping.public.loss[103.118.54.42],1m)<80
+  新问题：count(/SH-162/ping.public.loss[103.118.54.42],#2,"ge",80)=2 and count(/SH-162/ping.public.loss[103.118.54.42],2m)>=2
+  新恢复：mode=1 | avg(/SH-162/ping.public.loss[103.118.54.42],1m)<80
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=38252 | itemids=80020
+  名称：SH-BJ内网丢包 | 当前：OK
+  原问题：avg(/SH-162/ping.public.loss[192.168.1.134],1m)>=80
+  原恢复：mode=1 | avg(/SH-162/ping.public.loss[192.168.1.134],1m)<80
+  新问题：count(/SH-162/ping.public.loss[192.168.1.134],#2,"ge",80)=2 and count(/SH-162/ping.public.loss[192.168.1.134],2m)>=2
+  新恢复：mode=1 | avg(/SH-162/ping.public.loss[192.168.1.134],1m)<80
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=38253 | itemids=79805
+  名称：SH-IDC公网丢包 | 当前：OK
+  原问题：avg(/SH-162/ping.public.loss[1.81.5.164],1m)>=80
+  原恢复：mode=1 | avg(/SH-162/ping.public.loss[1.81.5.164],1m)<80
+  新问题：count(/SH-162/ping.public.loss[1.81.5.164],#2,"ge",80)=2 and count(/SH-162/ping.public.loss[1.81.5.164],2m)>=2
+  新恢复：mode=1 | avg(/SH-162/ping.public.loss[1.81.5.164],1m)<80
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=38254 | itemids=79819
+  名称：SH-IDC内网丢包 | 当前：OK
+  原问题：avg(/SH-162/ping.public.loss[192.168.253.106],1m)>=80
+  原恢复：mode=1 | avg(/SH-162/ping.public.loss[192.168.253.106],1m)<80
+  新问题：count(/SH-162/ping.public.loss[192.168.253.106],#2,"ge",80)=2 and count(/SH-162/ping.public.loss[192.168.253.106],2m)>=2
+  新恢复：mode=1 | avg(/SH-162/ping.public.loss[192.168.253.106],1m)<80
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=38255 | itemids=80398
+  名称：SH-XA公网丢包 | 当前：OK
+  原问题：avg(/SH-162/ping.public.loss[219.144.175.254],1m)>=80
+  原恢复：mode=1 | avg(/SH-162/ping.public.loss[219.144.175.254],1m)<80
+  新问题：count(/SH-162/ping.public.loss[219.144.175.254],#2,"ge",80)=2 and count(/SH-162/ping.public.loss[219.144.175.254],2m)>=2
+  新恢复：mode=1 | avg(/SH-162/ping.public.loss[219.144.175.254],1m)<80
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=38256 | itemids=80399
+  名称：SH-XA内网丢包 | 当前：OK
+  原问题：avg(/SH-162/ping.public.loss[192.168.2.69],1m)>=80
+  原恢复：mode=1 | avg(/SH-162/ping.public.loss[192.168.2.69],1m)<80
+  新问题：count(/SH-162/ping.public.loss[192.168.2.69],#2,"ge",80)=2 and count(/SH-162/ping.public.loss[192.168.2.69],2m)>=2
+  新恢复：mode=1 | avg(/SH-162/ping.public.loss[192.168.2.69],1m)<80
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=38257 | itemids=80018
+  名称：bj-sh-公网延迟 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.rtt.avg[61.169.185.146],1m)>=200
+  原恢复：mode=1 | avg(/BJ-134/ping.public.rtt.avg[61.169.185.146],1m)<100
+  新问题：count(/BJ-134/ping.public.rtt.avg[61.169.185.146],#2,"ge",200)=2 and count(/BJ-134/ping.public.rtt.avg[61.169.185.146],2m)>=2
+  新恢复：mode=1 | avg(/BJ-134/ping.public.rtt.avg[61.169.185.146],1m)<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=38258 | itemids=80367
+  名称：bj-xa-公网延迟 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.rtt.avg[219.144.175.254],1m)>=200
+  原恢复：mode=1 | avg(/BJ-134/ping.public.rtt.avg[219.144.175.254],1m)<100
+  新问题：count(/BJ-134/ping.public.rtt.avg[219.144.175.254],#2,"ge",200)=2 and count(/BJ-134/ping.public.rtt.avg[219.144.175.254],2m)>=2
+  新恢复：mode=1 | avg(/BJ-134/ping.public.rtt.avg[219.144.175.254],1m)<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=38259 | itemids=79652
+  名称：bj-idc-公网丢包 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.loss[113.200.121.196],1m)>=80
+  原恢复：mode=1 | avg(/BJ-134/ping.public.loss[113.200.121.196],1m)<10
+  新问题：count(/BJ-134/ping.public.loss[113.200.121.196],#2,"ge",80)=2 and count(/BJ-134/ping.public.loss[113.200.121.196],2m)>=2
+  新恢复：mode=1 | avg(/BJ-134/ping.public.loss[113.200.121.196],1m)<10
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=38260 | itemids=80014
+  名称：bj-idc-内网丢包 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.loss[192.168.253.106],1m)>=80
+  原恢复：mode=1 | avg(/BJ-134/ping.public.loss[192.168.253.106],1m)<10
+  新问题：count(/BJ-134/ping.public.loss[192.168.253.106],#2,"ge",80)=2 and count(/BJ-134/ping.public.loss[192.168.253.106],2m)>=2
+  新恢复：mode=1 | avg(/BJ-134/ping.public.loss[192.168.253.106],1m)<10
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=38261 | itemids=80011
+  名称：bj-sh-公网丢包 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.loss[61.169.185.146],1m)>=80
+  原恢复：mode=1 | avg(/BJ-134/ping.public.loss[61.169.185.146],1m)<50
+  新问题：count(/BJ-134/ping.public.loss[61.169.185.146],#2,"ge",80)=2 and count(/BJ-134/ping.public.loss[61.169.185.146],2m)>=2
+  新恢复：mode=1 | avg(/BJ-134/ping.public.loss[61.169.185.146],1m)<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=38262 | itemids=80015
+  名称：bj-sh-内网丢包 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.loss[192.168.5.162],1m)>=80
+  原恢复：mode=1 | avg(/BJ-134/ping.public.loss[192.168.5.162],1m)<50
+  新问题：count(/BJ-134/ping.public.loss[192.168.5.162],#2,"ge",80)=2 and count(/BJ-134/ping.public.loss[192.168.5.162],2m)>=2
+  新恢复：mode=1 | avg(/BJ-134/ping.public.loss[192.168.5.162],1m)<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=38263 | itemids=80365
+  名称：bj-xa-公网丢包 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.loss[219.144.175.254],1m)>=80
+  原恢复：mode=1 | avg(/BJ-134/ping.public.loss[219.144.175.254],1m)<50
+  新问题：count(/BJ-134/ping.public.loss[219.144.175.254],#2,"ge",80)=2 and count(/BJ-134/ping.public.loss[219.144.175.254],2m)>=2
+  新恢复：mode=1 | avg(/BJ-134/ping.public.loss[219.144.175.254],1m)<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=38264 | itemids=80363
+  名称：bj-xa-内网丢包 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.loss[192.168.2.69],1m)>=80
+  原恢复：mode=1 | avg(/BJ-134/ping.public.loss[192.168.2.69],1m)<50
+  新问题：count(/BJ-134/ping.public.loss[192.168.2.69],#2,"ge",80)=2 and count(/BJ-134/ping.public.loss[192.168.2.69],2m)>=2
+  新恢复：mode=1 | avg(/BJ-134/ping.public.loss[192.168.2.69],1m)<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=39361 | itemids=80355
+  名称：XA-BJ公网丢包-50 | 当前：OK
+  原问题：avg(/XA-69/ping.public.loss[103.118.54.42],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.loss[103.118.54.42],#2,"ge",50)=2 and count(/XA-69/ping.public.loss[103.118.54.42],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.loss[103.118.54.42])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=39362 | itemids=80259
+  名称：XA-BJ公网延迟-100 | 当前：OK
+  原问题：avg(/XA-69/ping.public.rtt.avg[103.118.54.42],1m)>=100
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.rtt.avg[103.118.54.42],#2,"ge",100)=2 and count(/XA-69/ping.public.rtt.avg[103.118.54.42],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.rtt.avg[103.118.54.42])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=39363 | itemids=80352
+  名称：XA-BJ内网丢包-50 | 当前：OK
+  原问题：avg(/XA-69/ping.public.loss[192.168.1.134],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.loss[192.168.1.134],#2,"ge",50)=2 and count(/XA-69/ping.public.loss[192.168.1.134],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.loss[192.168.1.134])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=39364 | itemids=80349
+  名称：XA-BJ内网延迟-100 | 当前：OK
+  原问题：avg(/XA-69/ping.public.rtt.avg[192.168.1.134],1m)>=100
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.rtt.avg[192.168.1.134],#2,"ge",100)=2 and count(/XA-69/ping.public.rtt.avg[192.168.1.134],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.rtt.avg[192.168.1.134])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=39365 | itemids=80354
+  名称：XA-IDC公网丢包-50 | 当前：OK
+  原问题：avg(/XA-69/ping.public.loss[1.81.5.164],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.loss[1.81.5.164],#2,"ge",50)=2 and count(/XA-69/ping.public.loss[1.81.5.164],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.loss[1.81.5.164])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=39366 | itemids=80353
+  名称：XA-IDC内网丢包-50 | 当前：OK
+  原问题：avg(/XA-69/ping.public.loss[192.168.253.106],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.loss[192.168.253.106],#2,"ge",50)=2 and count(/XA-69/ping.public.loss[192.168.253.106],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.loss[192.168.253.106])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=39367 | itemids=80350
+  名称：XA-IDC内网延迟-100 | 当前：OK
+  原问题：avg(/XA-69/ping.public.rtt.avg[192.168.253.106],1m)>=100
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.rtt.avg[192.168.253.106],#2,"ge",100)=2 and count(/XA-69/ping.public.rtt.avg[192.168.253.106],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.rtt.avg[192.168.253.106])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=39368 | itemids=80395
+  名称：XA-SH公网丢包-50 | 当前：OK
+  原问题：avg(/XA-69/ping.public.loss[61.169.185.146],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.loss[61.169.185.146],#2,"ge",50)=2 and count(/XA-69/ping.public.loss[61.169.185.146],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.loss[61.169.185.146])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=39369 | itemids=80383
+  名称：XA-SH公网延迟-100 | 当前：OK
+  原问题：count(/XA-69/ping.public.rtt.avg[61.169.185.146],#2,"ge",100)=2
+and
+count(/XA-69/ping.public.rtt.avg[61.169.185.146],2m)>=2
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.rtt.avg[61.169.185.146],#2,"ge",100)=2 and count(/XA-69/ping.public.rtt.avg[61.169.185.146],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.rtt.avg[61.169.185.146])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=39370 | itemids=80394
+  名称：XA-SH内网丢包-50 | 当前：OK
+  原问题：avg(/XA-69/ping.public.loss[192.168.5.162],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.loss[192.168.5.162],#2,"ge",50)=2 and count(/XA-69/ping.public.loss[192.168.5.162],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.loss[192.168.5.162])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=39371 | itemids=80384
+  名称：XA-SH内网延迟-100 | 当前：OK
+  原问题：avg(/XA-69/ping.public.rtt.avg[192.168.5.162],1m)>=100
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.rtt.avg[192.168.5.162],#2,"ge",100)=2 and count(/XA-69/ping.public.rtt.avg[192.168.5.162],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.rtt.avg[192.168.5.162])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] XA-69 | triggerid=39372 | itemids=80258
+  名称：XA-IDC公网延迟 | 当前：OK
+  原问题：avg(/XA-69/ping.public.rtt.avg[1.81.5.164],1m)>=200
+  原恢复：mode=0 | 
+  新问题：count(/XA-69/ping.public.rtt.avg[1.81.5.164],#2,"ge",200)=2 and count(/XA-69/ping.public.rtt.avg[1.81.5.164],2m)>=2
+  新恢复：mode=1 | last(/XA-69/ping.public.rtt.avg[1.81.5.164])<200
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=39373 | itemids=80021
+  名称：SH-BJ公网丢包-50 | 当前：OK
+  原问题：avg(/SH-162/ping.public.loss[103.118.54.42],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/SH-162/ping.public.loss[103.118.54.42],#2,"ge",50)=2 and count(/SH-162/ping.public.loss[103.118.54.42],2m)>=2
+  新恢复：mode=1 | last(/SH-162/ping.public.loss[103.118.54.42])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=39374 | itemids=79817
+  名称：SH-BJ公网延迟-100 | 当前：OK
+  原问题：avg(/SH-162/ping.public.rtt.avg[103.118.54.42],1m)>=100
+  原恢复：mode=0 | 
+  新问题：count(/SH-162/ping.public.rtt.avg[103.118.54.42],#2,"ge",100)=2 and count(/SH-162/ping.public.rtt.avg[103.118.54.42],2m)>=2
+  新恢复：mode=1 | last(/SH-162/ping.public.rtt.avg[103.118.54.42])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=39375 | itemids=80020
+  名称：SH-BJ内网丢包-50 | 当前：OK
+  原问题：avg(/SH-162/ping.public.loss[192.168.1.134],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/SH-162/ping.public.loss[192.168.1.134],#2,"ge",50)=2 and count(/SH-162/ping.public.loss[192.168.1.134],2m)>=2
+  新恢复：mode=1 | last(/SH-162/ping.public.loss[192.168.1.134])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=39376 | itemids=79818
+  名称：SH-BJ内网延迟-100 | 当前：OK
+  原问题：avg(/SH-162/ping.public.rtt.avg[192.168.1.134],1m)>=100
+  原恢复：mode=0 | 
+  新问题：count(/SH-162/ping.public.rtt.avg[192.168.1.134],#2,"ge",100)=2 and count(/SH-162/ping.public.rtt.avg[192.168.1.134],2m)>=2
+  新恢复：mode=1 | last(/SH-162/ping.public.rtt.avg[192.168.1.134])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=39377 | itemids=79805
+  名称：SH-IDC公网丢包-50 | 当前：OK
+  原问题：avg(/SH-162/ping.public.loss[1.81.5.164],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/SH-162/ping.public.loss[1.81.5.164],#2,"ge",50)=2 and count(/SH-162/ping.public.loss[1.81.5.164],2m)>=2
+  新恢复：mode=1 | last(/SH-162/ping.public.loss[1.81.5.164])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=39378 | itemids=79806
+  名称：SH-IDC公网延迟-100 | 当前：OK
+  原问题：avg(/SH-162/ping.public.rtt.avg[1.81.5.164],1m)>=100
+  原恢复：mode=0 | 
+  新问题：count(/SH-162/ping.public.rtt.avg[1.81.5.164],#2,"ge",100)=2 and count(/SH-162/ping.public.rtt.avg[1.81.5.164],2m)>=2
+  新恢复：mode=1 | last(/SH-162/ping.public.rtt.avg[1.81.5.164])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=39379 | itemids=79819
+  名称：SH-IDC内网丢包-50 | 当前：OK
+  原问题：avg(/SH-162/ping.public.loss[192.168.253.106],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/SH-162/ping.public.loss[192.168.253.106],#2,"ge",50)=2 and count(/SH-162/ping.public.loss[192.168.253.106],2m)>=2
+  新恢复：mode=1 | last(/SH-162/ping.public.loss[192.168.253.106])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=39380 | itemids=79808
+  名称：SH-IDC内网延迟-100 | 当前：OK
+  原问题：avg(/SH-162/ping.public.rtt.avg[192.168.253.106],1m)>=100
+  原恢复：mode=0 | 
+  新问题：count(/SH-162/ping.public.rtt.avg[192.168.253.106],#2,"ge",100)=2 and count(/SH-162/ping.public.rtt.avg[192.168.253.106],2m)>=2
+  新恢复：mode=1 | last(/SH-162/ping.public.rtt.avg[192.168.253.106])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=39381 | itemids=80401
+  名称：SH-XA公网延迟-100 | 当前：OK
+  原问题：avg(/SH-162/ping.public.rtt.avg[219.144.175.254],1m)>=100
+  原恢复：mode=0 | 
+  新问题：count(/SH-162/ping.public.rtt.avg[219.144.175.254],#2,"ge",100)=2 and count(/SH-162/ping.public.rtt.avg[219.144.175.254],2m)>=2
+  新恢复：mode=1 | last(/SH-162/ping.public.rtt.avg[219.144.175.254])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=39382 | itemids=80398
+  名称：SH-XA公网丢包-50 | 当前：OK
+  原问题：avg(/SH-162/ping.public.loss[219.144.175.254],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/SH-162/ping.public.loss[219.144.175.254],#2,"ge",50)=2 and count(/SH-162/ping.public.loss[219.144.175.254],2m)>=2
+  新恢复：mode=1 | last(/SH-162/ping.public.loss[219.144.175.254])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=39383 | itemids=80399
+  名称：SH-XA内网丢包-50 | 当前：OK
+  原问题：avg(/SH-162/ping.public.loss[192.168.2.69],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/SH-162/ping.public.loss[192.168.2.69],#2,"ge",50)=2 and count(/SH-162/ping.public.loss[192.168.2.69],2m)>=2
+  新恢复：mode=1 | last(/SH-162/ping.public.loss[192.168.2.69])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] SH-162 | triggerid=39384 | itemids=80400
+  名称：SH-XA内网延迟-100 | 当前：OK
+  原问题：avg(/SH-162/ping.public.rtt.avg[192.168.2.69],1m)>=100
+  原恢复：mode=0 | 
+  新问题：count(/SH-162/ping.public.rtt.avg[192.168.2.69],#2,"ge",100)=2 and count(/SH-162/ping.public.rtt.avg[192.168.2.69],2m)>=2
+  新恢复：mode=1 | last(/SH-162/ping.public.rtt.avg[192.168.2.69])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=39385 | itemids=79652
+  名称：bj-idc-公网丢包-50 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.loss[113.200.121.196],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/BJ-134/ping.public.loss[113.200.121.196],#2,"ge",50)=2 and count(/BJ-134/ping.public.loss[113.200.121.196],2m)>=2
+  新恢复：mode=1 | last(/BJ-134/ping.public.loss[113.200.121.196])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=39386 | itemids=80019
+  名称：bj-idc-公网延迟-100 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.rtt.avg[113.200.121.196],1m)>=100
+  原恢复：mode=0 | 
+  新问题：count(/BJ-134/ping.public.rtt.avg[113.200.121.196],#2,"ge",100)=2 and count(/BJ-134/ping.public.rtt.avg[113.200.121.196],2m)>=2
+  新恢复：mode=1 | last(/BJ-134/ping.public.rtt.avg[113.200.121.196])<100
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+[CHANGE] BJ-134 | triggerid=39389 | itemids=80014
+  名称：bj-idc-内网丢包-50 | 当前：OK
+  原问题：avg(/BJ-134/ping.public.loss[192.168.253.106],1m)>=50
+  原恢复：mode=0 | 
+  新问题：count(/BJ-134/ping.public.loss[192.168.253.106],#2,"ge",50)=2 and count(/BJ-134/ping.public.loss[192.168.253.106],2m)>=2
+  新恢复：mode=1 | last(/BJ-134/ping.public.loss[192.168.253.106])<50
+  处理说明：保留原阈值/比较符；保留已有自定义恢复，无自定义恢复时用最新值回到正常侧恢复；Single。
+
+C. 汇总
+----------------------------------------------------------------------------------------
+CHANGE=74 | UNCHANGED=1 | REVIEW=0 | DISABLED=0
+BLOCK=0
+
+只有 BLOCK=0、REVIEW=0，且逐项核对符合预期时，才进入 --apply。
+提交前重新读取两次（含确认输入后），发现新增/删除/修改/权限变化即停止。
+DISABLED 是原已禁用对象，不会被修改或启用；报告不把它们当作已优化。
+没有读取/修改邮件动作，也没有测试邮件投递；原动作仍决定收件人、抑制和重复通知。
+本文件由只读查询生成；生成报告不等于已经更新触发器。
